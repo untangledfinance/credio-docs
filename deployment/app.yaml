@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: $ENV
+  name: $SERVICE_NAME
+  labels:
+    env: $ENV
+    name: $SERVICE_NAME
+spec:
+  selector:
+    matchLabels:
+      env: $ENV
+      name: $SERVICE_NAME
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # maxUnavailable define how many pods can be unavailable # during the rolling update
+      maxSurge: 1 # how many pods we can add at a time
+  progressDeadlineSeconds: 300
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        env: $ENV
+        name: $SERVICE_NAME
+    spec:
+      containers:
+        - name: $SERVICE_NAME
+          image: "470758053753.dkr.ecr.eu-west-2.amazonaws.com/$SERVICE_NAME:$RELEASE_VERSION"
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: 3000
+          resources:
+            limits:
+              cpu: 100m
+              memory: 200Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
+      nodeSelector:
+        type: $NODE_SELECTOR
+      tolerations:
+        - effect: NoSchedule
+          key: type
+          operator: Equal
+          value: $NODE_SELECTOR
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $SERVICE_NAME
+  namespace: $ENV
+  labels:
+    env: $ENV
+    name: $SERVICE_NAME
+spec:
+  selector:
+    env: $ENV
+    name: $SERVICE_NAME
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
