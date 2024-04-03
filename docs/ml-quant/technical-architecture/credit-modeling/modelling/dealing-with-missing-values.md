@@ -1,0 +1,15 @@
+# Dealing with missing values
+
+* In most real-life cases, we do not work with clean, complete data. One of the potential problems we are bound to encounter is that of missing values. We can categorize missing values by the reason they occur:
+  * Missing completely at random (MCAR)—The reason for the missing data is unrelated to the rest of the data. An example could be a respondent accidentally missing a question in a survey.
+  * Missing at random (MAR)—The missingness of the data can be inferred from data in another column(-s). For example, the missingness to a response to a certain survey question can be to some extent determined conditionally by other factors such as gender, age, lifestyle, and so on.
+  * Missing not at random (MNAR)—When there is some underlying reason for the missing values. For example, people with very high incomes tend to be hesitant about revealing it.
+  * Structurally missing data—Often a subset of MNAR, the data is missing because of a logical reason. For example, when a variable representing the age of a spouse is missing, we can infer that a given person has no spouse.
+* While some machine learning algorithms can account for missing data (for example, XG Boosting can treat missing values as a separate and unique value), many algorithms cannot, or their popular implementations (such as the ones in scikit-learn) do not incorporate this functionality.
+* Some popular solutions include:
+  * Drop observations with one, or more, missing values—While this is the easiest approach, it is not always a good one, especially in the case of small datasets. Even if there is only a small fraction of missing values per feature, they do not necessarily occur for the same observations (rows), so the actual number of rows to remove can be much higher. Additionally, in the case of data missing not at random, removing such observations from the analysis can introduce bias into the results.
+  * Replace the missing values with a value far outside the possible range, so that algorithms such as decision trees can treat it as a special value, indicating missing data.
+  * In the case of dealing with time series, we can use forward-filling (take the last-known observation before the missing one), backward-filling (take the first-known observation after the missing one), or interpolation (linear or more advanced).
+  * Replace the missing values with an aggregate metric—for continuous data, we can use the mean (when there are no clear outliers in the data) or median (when there are outliers). In the case of categorical variables, we can use mode (the most common value in the set). A potential disadvantage of mean/median imputation is the reduction of variance in the dataset.
+  * Replace the missing values with aggregate metrics calculated per group—for example, when dealing with body-related metrics, we can calculate the mean or median per gender, to more accurately replace the missing data.
+  * ML-based approaches—We can treat the considered feature as a target, and use complete cases to train a model and predict values for the missing observations.
