@@ -1,0 +1,40 @@
+{
+  "build": {
+    "context": ".",
+    "dockerfile": "Dockerfile",
+    "args": {
+      "NODE_VERSION": "18",
+      "USER": "dev",
+      "WORKSPACE": "rwawise-docs",
+      "PROFILE": "dev"
+    }
+  },
+  "remoteUser": "dev",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anweber.vscode-httpyac",
+        "DavidAnson.vscode-markdownlint",
+        "eamodio.gitlens",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "shardulm94.trailing-spaces",
+        "VisualStudioExptTeam.vscodeintellicode"
+      ],
+      "settings": {
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+  "features": {
+    "docker-in-docker": {
+      "moby": true,
+      "version": "latest"
+    }
+  },
+  "runArgs": ["--init"]
+}
