@@ -8,8 +8,8 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: "RWAwise",
-  tagline: "Streaming RWA credit intelligence",
+  title: "Streaming RWA credit intelligence",
+  tagline: "Untangled quant offers comprehensive risk solutions for on-chain Real World Asset (RWA) credits, leveraging a multi-faceted approach that includes portfolio-specific machine-learning credit modeling, fundamental analysis, and the integration of unified on-chain and off-chain data. A core tenet of Untangled's methodology is the implementation of privacy-preserving measures to secure the confidentiality of the portfolio dataset.",
   favicon: "img/favicon.ico",
 
   // Set the production url of your site here

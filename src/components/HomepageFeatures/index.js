@@ -4,32 +4,31 @@ import styles from './styles.module.css';
 
 const FeatureList = [
   {
-    title: 'Easy to Use',
+    title: 'On-Chain RWA Credits',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        &bull; Specialized risk solutions tailored for on-chain Real World Asset credits.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Portfolio-Specific Machine-Learning Credit Modeling',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        &bull; Utilizes advanced machine-learning techniques to craft credit models customized for the distinct characteristics of each portfolio.<br />
+        &bull; Incorporates fundamental analysis to gain insights into underlying assets, identifying patterns, trends, and risk factors.<br />
+        &bull; Integrates data from both on-chain and off-chain sources, providing a holistic view for a more comprehensive risk assessment.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Privacy-Preserving Data Security',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        &bull; Implements stringent privacy-preserving measures to secure the portfolio dataset, ensuring the confidentiality of sensitive information.
       </>
     ),
   },
@@ -38,11 +37,11 @@ const FeatureList = [
 function Feature({Svg, title, description}) {
   return (
     <div className={clsx('col col--4')}>
-      <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
+      <div className="text--left padding-horiz--md">
+        {/* <Svg className={styles.featureSvg} role="img" /> */}
       </div>
-      <div className="text--center padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
+      <div className="text--left padding-horiz--md">
+      <Heading as="h3" className="text--center">{title}</Heading>
         <p>{description}</p>
       </div>
     </div>
