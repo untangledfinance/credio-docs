@@ -1,2 +1,2 @@
 # Modelling
-Processing to get model
+Main steps to get machine learning credit model
