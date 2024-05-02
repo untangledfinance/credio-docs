@@ -33,5 +33,3 @@ Real World Assets (RWA) and decentralized finance aligns with key factors that c
 Credit Modeling Machine Learning (ML) models can be a powerful tool to gain insights into the expected repayment behavior of borrowers and to forecast the amount of money a lending platform can expect in any given month. Credit modeling using ML leverages historical data and various features to build predictive models that can assess the creditworthiness of borrowers and estimate their likelihood of default
 
 We involves leveraging both on-chain user behavior and historical loan data to model the month-by-month behavior of Real World Asset (RWA) loans. The combination of on-chain data and monthly loan history provides a comprehensive view of a borrower's creditworthiness and repayment patterns.
-
-<img src="docs/ml-quant/.gitbook/assets/image (4).png" alt="Unified credit model architecture" />
