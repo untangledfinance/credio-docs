@@ -1,6 +1,6 @@
-# Main Features
+# Use cases
 
-## Untangle Finance offers three main features:
+## Untangle Finance offers three main usecases:
 
 **1. Pool Parameters Recommendation**
    - **Objective:** This feature assists users in configuring their parameters for maximum profit and minimizing the risk of loan loss.
