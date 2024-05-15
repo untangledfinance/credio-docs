@@ -26,7 +26,9 @@ Read more about our work on credit modelling at [RWAwise.xyz](https://rwawise.xy
 ## Credit oracle
 Just like Chainlink is not the only source of crypto pricing, Untangled is decentralizing the credit modeling/pricing such that anyone with expertise in specific asset classes or the big rating agencies of the world can provide credit prices for RWA lending protocols. In order to feed those credit prices into smart contracts, an infrastructure layer needs to be developed. Where Chainlink builds an infrastructure for feeding crypto prices, Untangled build an credit oracle infrastructure to feed credit prices directly into smart contracts in real-time. 
 
-![](./img/credit-oracle.png)
+![](./img/ml-quant/credit-oracle.png)
+
+<img src="/img/ml-quant/credit-oracle.png" alt="" />
 
 In building this infrastructure layer we collaborate with Chainlink and use the technologies Chainlink provides such as Automation or Functions. 
 
