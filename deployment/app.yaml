@@ -44,21 +44,3 @@ spec:
           key: type
           operator: Equal
           value: $NODE_SELECTOR
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: $SERVICE_NAME
-  namespace: $ENV
-  labels:
-    env: $ENV
-    name: $SERVICE_NAME
-spec:
-  selector:
-    env: $ENV
-    name: $SERVICE_NAME
-  type: ClusterIP
-  ports:
-    - protocol: TCP
-      port: 3000
-      targetPort: 3000
