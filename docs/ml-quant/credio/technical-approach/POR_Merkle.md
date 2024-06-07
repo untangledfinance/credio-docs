@@ -1,0 +1,17 @@
+While RWA d-apps currently utilize a centralized validator role for off-chain collateral verification, we can explore a more decentralized approach by increasing the number of validators. This would necessitate a robust consensus mechanism amongst them. Additionally, considering the cost-effectiveness of computations on the shared Ethereum virtual machine, we propose using a proof-of-reserve strategy. This allows validators to efficiently commit a large amount of collateral data using a single Merkle tree root.
+
+We will start with the Merkle tree data structure. There are many ways to implement this data structure. But the key element is using a hash function (one way function). 
+
+<img src="/img/ml-quant/one-way function.png" alt="" />
+      
+Hash functions play a crucial role in modern data management. They act as efficient data wranglers, transforming information of any size into fixed-length strings. This condensed format makes data storage and retrieval significantly faster. Furthermore, hash functions offer an additional layer of security. They generate a unique fingerprint for any given data set. This fingerprint, known as a hash value, acts as a sensitive guardian, detecting even the slightest alteration to the original data. Any change in the data will result in a completely different hash value, immediately alerting us to potential tampering.
+
+Merkle trees, ingenious data structures, leverage the power of hash functions to ensure data integrity in a distributed environment. Imagine a binary tree where each leaf node stores the hash of a data block. Now, the magic unfolds. For non-leaf nodes, the combined hash of their left and right child nodes becomes their value. This process continues upwards, with each parent node holding the hash of its children's hashes. Remarkably, the root node, containing the final hash, represents the entire tree's fingerprint. Any modification to a single data block will ripple through the tree, altering all the hashes upwards, ultimately changing the root hash. This allows efficient verification of data integrity. By simply comparing the root hash of a downloaded file with the original source's published root hash, we can instantly confirm if the data remains unaltered.
+
+<img src="/img/ml-quant/Merkle trees.drawio.png" alt="" />
+
+Verifying data in a Merkle tree is surprisingly simple. Imagine it like a family tree, where the data you want to check is a descendant (leaf node) and the root represents the ancestor. Anyone can confirm if the data belongs to the tree by following these steps:
+Gather Cousin Hashes: Ask for "cousin hashes" along the path connecting your data to the known root hash. These "cousins" are siblings (nodes at the same level) of other nodes on that path.
+Combine and Climb: Start with the hash of your data, like a unique family identifier. Combine it with each cousin hash you receive as you move up the tree, just like piecing together family history.
+Match the Root Hash: If the final hash you get after combining all the cousin hashes matches the known root hash of the entire tree, it's a match! This confirms your data is genuinely part of the Merkle tree, just like finding a match with the family ancestor.
+In the RWA scenario, validators only require the consensus data at the root of the Merkle tree. This enables anyone to verify the metadata of all collaterals using just a proof obtained from a validator.
