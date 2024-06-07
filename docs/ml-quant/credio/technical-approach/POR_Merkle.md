@@ -2,7 +2,7 @@ While RWA d-apps currently utilize a centralized validator role for off-chain co
 
 We will start with the Merkle tree data structure. There are many ways to implement this data structure. But the key element is using a hash function (one way function). 
 
-
+<img src="/img/ml-quant/one-way function.png" alt="" />
       
 Hash functions play a crucial role in modern data management. They act as efficient data wranglers, transforming information of any size into fixed-length strings. This condensed format makes data storage and retrieval significantly faster. Furthermore, hash functions offer an additional layer of security. They generate a unique fingerprint for any given data set. This fingerprint, known as a hash value, acts as a sensitive guardian, detecting even the slightest alteration to the original data. Any change in the data will result in a completely different hash value, immediately alerting us to potential tampering.
 
