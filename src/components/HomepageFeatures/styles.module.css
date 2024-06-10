@@ -1,11 +1,39 @@
+
 .features {
   display: flex;
   align-items: center;
-  padding: 2rem 0;
   width: 100%;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 0 20rem;
+}
+
+.feature {
+  flex: 1;
+  border: 1px solid #dfe7fb;
+  border-radius: 10px;
+  display: flex;
+  padding: 32px;
+  gap: 32px;
+  height: 180px;
+  & h3 {
+    margin-bottom: 0px
+  }
+}
+
+.featureContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  & p {
+    font-size: 14px;
+  }
 }
 
 .featureSvg {
-  height: 200px;
-  width: 200px;
+  flex-shrink: 0;
+  & svg {
+    height: 50px;
+  width: 50px;
+  }
 }
