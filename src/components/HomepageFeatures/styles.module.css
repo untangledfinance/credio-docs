@@ -8,6 +8,18 @@
   padding: 0 20rem;
 }
 
+
+@media screen and (max-width: 996px) {
+  .features {
+    flex-direction: column;
+    padding: 0 2rem;
+  }
+
+  .feature {
+    width: 100%
+  }
+}
+
 .feature {
   flex: 1;
   border: 1px solid #dfe7fb;
@@ -30,10 +42,11 @@
   }
 }
 
-.featureSvg {
+.featureIconWrapper {
   flex-shrink: 0;
-  & svg {
-    height: 50px;
+}
+
+.featureIcon {
+  height: 50px;
   width: 50px;
-  }
 }

@@ -26,8 +26,8 @@ const FeatureList = [
 function Feature({ icon: Icon, title, description }) {
   return (
     <div className={styles.feature}>
-      <div className={styles.featureSvg}>
-        <Icon role="img" />
+      <div className={styles.featureIconWrapper}>
+        <Icon className={styles.featureIcon} role="img" />
       </div>
       <div className={styles.featureContent}>
         <Heading as="h3">{title}</Heading>
