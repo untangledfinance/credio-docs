@@ -1,47 +1,38 @@
 import clsx from "clsx";
 import Heading from "@theme/Heading";
 import styles from "./styles.module.css";
-
-const FeatureList = [
-  {
-    title: "Data analytics",
-    icon: require("@site/static/img/undraw_docusaurus_mountain.svg").default,
-    description:
-      "Query, visualize, download onchain datasets for credit analytics and model building",
-  },
-  {
-    title: "Credio",
-    icon: require("@site/static/img/undraw_docusaurus_tree.svg").default,
-    description:
-      "Participate in challenges, earn from your model whilst keeping it private or stake CREDIO to secure the network",
-  },
-  {
-    title: "Modelling Hub",
-    icon: require("@site/static/img/undraw_docusaurus_react.svg").default,
-    description:
-      "Explore machine learning credit modelling best practices and recipes",
-  },
-];
-
-function Feature({ icon: Icon, title, description }) {
-  return (
-    <div className={styles.feature}>
-      <div className={styles.featureIconWrapper}>
-        <Icon className={styles.featureIcon} role="img" />
-      </div>
-      <div className={styles.featureContent}>
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
-      </div>
-    </div>
-  );
-}
+import {
+  PrismicImage,
+  PrismicRichText,
+  PrismicText,
+  usePrismicDocumentByUID,
+} from "@prismicio/react";
 
 export default function HomepageFeatures() {
+  const [document] = usePrismicDocumentByUID("landing_page", "features");
+  const content = document?.data?.body?.[0]?.items;
+
+  if (!content) return null;
+
   return (
     <section className={styles.features}>
-      {FeatureList.map((props, idx) => (
-        <Feature key={idx} {...props} />
+      {content.map((item, idx) => (
+        <a
+          key={idx}
+          className={styles.feature}
+          href={item.link.url ?? "javascript:void(0)"}
+          target={item.link.target}
+        >
+          <div className={styles.featureIconWrapper}>
+            <PrismicImage className={styles.featureIcon} field={item.logo} />
+          </div>
+          <div className={styles.featureContent}>
+            <Heading as="h3">
+              <PrismicText field={item.title} />
+            </Heading>
+            <PrismicRichText field={item.description} />
+          </div>
+        </a>
       ))}
     </section>
   );
