@@ -13,7 +13,7 @@ const config = {
   favicon: "img/small_logo.png",
 
   // Set the production url of your site here
-  url: "https://app.untangled.finance",
+  url: "https://credio.network/",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/",
@@ -66,9 +66,9 @@ const config = {
       // Replace with your project's social card
       image: "img/docusaurus-social-card.jpg",
       navbar: {
-        title: "Untangled",
+        title: "Credio",
         logo: {
-          alt: "Untangled",
+          alt: "Credio",
           src: "img/small_logo.png",
         },
         items: [
