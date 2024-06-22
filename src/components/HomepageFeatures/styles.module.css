@@ -10,7 +10,7 @@
 
 .feature {
   text-decoration: none;
-  color: black;
+  color: var(--text-primary);
   flex: 1;
   border: 1px solid #dfe7fb;
   border-radius: 10px;
