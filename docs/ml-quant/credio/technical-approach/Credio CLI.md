@@ -1,5 +1,7 @@
 # Credio CLI
 
+<img src="/img/ml-quant/Credio gateway architecture.png" alt="" />
+
 ## Installation
 The following criteria must be met in the Modeler’s device/machine:
 Python 3.11.9+ and its associated package installer (pip) installed;
