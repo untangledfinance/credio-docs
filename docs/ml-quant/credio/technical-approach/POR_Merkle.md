@@ -1,3 +1,5 @@
+# Proof of Reserve with Merkle tree
+
 While RWA d-apps currently utilize a centralized validator role for off-chain collateral verification, we can explore a more decentralized approach by increasing the number of validators. This would necessitate a robust consensus mechanism amongst them. Additionally, considering the cost-effectiveness of computations on the shared Ethereum virtual machine, we propose using a proof-of-reserve strategy. This allows validators to efficiently commit a large amount of collateral data using a single Merkle tree root.
 
 We will start with the Merkle tree data structure. There are many ways to implement this data structure. But the key element is using a hash function (one way function). 
