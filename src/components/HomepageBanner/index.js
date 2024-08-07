@@ -23,7 +23,7 @@ export default function HomepageHeader() {
         <p>{content.description}</p>
         <Link
           className="button button--primary button--md"
-          to="docs/ml-quant/credio/intro"
+          to="docs/credio/intro"
         >
           Getting Started
         </Link>
