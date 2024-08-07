@@ -8,6 +8,8 @@ env:
   AWS_REGION: eu-west-2
   DOCKER_REGISTRY: 470758053753.dkr.ecr.eu-west-2.amazonaws.com
   SERVICE_NAME: rwawise-docs
+  EKS_CLUSTER_NAME: eks-prod
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 jobs:
   prod:
@@ -31,7 +33,7 @@ jobs:
       - name: Build images
         run: ./deployment/build.sh $DOCKER_REGISTRY $AWS_REGION $SERVICE_NAME $RELEASE_VERSION
       - name: Set config
-        run: aws eks --region eu-west-2 update-kubeconfig --name dev-eks
+        run: aws eks --region eu-west-2 update-kubeconfig --name $EKS_CLUSTER_NAME
       - name: Deploy app
         run: |
           envsubst < deployment/app.yaml > deployment/a.yaml | kubectl apply -f deployment/a.yaml

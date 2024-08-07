@@ -17,6 +17,8 @@
     "@docusaurus/core": "3.1.0",
     "@docusaurus/preset-classic": "3.1.0",
     "@mdx-js/react": "^3.0.0",
+    "@prismicio/client": "^7.5.0",
+    "@prismicio/react": "^2.8.0",
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",
     "react": "^18.0.0",

@@ -1,11 +1,60 @@
 .features {
   display: flex;
-  align-items: center;
-  padding: 2rem 0;
+  align-items: baseline;
   width: 100%;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 0 10rem;
+  margin-bottom: 2rem;
 }
 
-.featureSvg {
-  height: 200px;
-  width: 200px;
+.feature {
+  text-decoration: none;
+  color: var(--text-primary);
+  flex: 1;
+  border: 1px solid #dfe7fb;
+  border-radius: 10px;
+  display: flex;
+  padding: 32px;
+  gap: 32px;
+  height: 100%;
+  min-height: 200px;
+  &:hover {
+    text-decoration: none;
+  }
+  & h3,
+  & p {
+    margin-bottom: 0px;
+  }
+}
+
+.featureContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  & p {
+    font-size: 14px;
+  }
+}
+
+.featureIconWrapper {
+  flex-shrink: 0;
+}
+
+.featureIcon {
+  height: 50px;
+  width: 50px;
+}
+
+@media only screen and (max-width: 768px) {
+  .features {
+    display: flex;
+    flex-direction: column;
+    padding: 0 2rem;
+    margin-bottom: 5rem;
+  }
+
+  .feature {
+    width: 100%;
+  }
 }

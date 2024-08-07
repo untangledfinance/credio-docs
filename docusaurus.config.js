@@ -8,12 +8,12 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: "Untangled Quant",
+  title: "Credio Documentation",
   tagline: "Streaming RWA credit intelligence",
-  favicon: "img/favicon.ico",
+  favicon: "img/small_logo.png",
 
   // Set the production url of your site here
-  url: "https://your-docusaurus-site.example.com",
+  url: "https://credio.network/",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/",
@@ -66,10 +66,10 @@ const config = {
       // Replace with your project's social card
       image: "img/docusaurus-social-card.jpg",
       navbar: {
-        title: "RWAwise",
+        title: "Credio",
         logo: {
-          alt: "RWAwise",
-          src: "img/image.png",
+          alt: "Credio",
+          src: "img/small_logo.png",
         },
         items: [
           {

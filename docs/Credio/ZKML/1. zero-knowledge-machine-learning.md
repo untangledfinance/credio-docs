@@ -1,4 +1,3 @@
-
 # Zero-Knowledge Machine Learning (zkML)
 
 An end-to-end workflow depicting how to use ezkl to generate and verify zero knowledge proofs for ML model outputs
@@ -8,10 +7,11 @@ An end-to-end workflow depicting how to use ezkl to generate and verify zero kno
 In our context, Zero-Knowledge Machine Learning (zkML) is the ability to verifiably prove that a given prediction did indeed come from a certain machine learning (ML) model claimed so by the modeler who trained that ML model.
 
 There are two main players in the zkML game:
+
 - prover, who testifies that a given prediction is the output of a certain ML model
 - verifier, who verifies the correctness of the above proof
 
-Please refer to [this post](link) for a detailed primer on zkML.
+Please refer to [this post] for a detailed primer on zkML.
 
 ## zkML in Practice
 
@@ -28,7 +28,7 @@ Concretely, given a ML model `M` that outputs `y`:
 - zkML converts `M` to a quantized zk circuit `M'`
 - `M'` produces an output `y'`
 - zkML proves that the `y'` did indeed come from M'
-- The difference between `y` and `y'` is known as the Quantization Error 
+- The difference between `y` and `y'` is known as the Quantization Error
 
 The above might appear to be counterintuitive to a traditional ML practitioner/data scientist, however:
 
@@ -45,11 +45,12 @@ We require Modelers to use `y'` for all predictions returned during the Consumpt
 
 ## Recommendation
 
-We recommend calculating the quantization error of your trained model (using the provided [sample code]() , tailored to your circumstances) and making sure that the average of absolute errors across a handful of observations is not too high. If it is too high then experiment with another model architecture (with different operations) or adjust your zkML setup as explained in the Calibrate Settings section below. 
+We recommend calculating the quantization error of your trained model (using the provided [sample code] , tailored to your circumstances) and making sure that the average of absolute errors across a handful of observations is not too high. If it is too high then experiment with another model architecture (with different operations) or adjust your zkML setup as explained in the Calibrate Settings section below.
 
 Note that using the resources calibration in `ezkl.calibrate_settings()` will generally result in reasonable quantization errors, however there are certain operations (e.g., `BatchNorm1d`) that will result in a higher quantization error compared to the models that don't include such operations.
 
 ## zkML Library
+
 Credio has partnered with [Zkonduit](https://github.com/zkonduit) to allow the generation and verification of verifiable Zero-Knowledge Proofs on its platform. ezkl, one of Zkonduit’s zkML project, allows modelers to create zero-knowledge proofs of machine learning models imported using the Open Neural Network Exchange ([ONNX](https://onnx.ai/)).
 
 Please refer to ezkl’s [GitHub repo](https://github.com/zkonduit/ezkl) for further details, including some demo Jupyter Notebooks.
@@ -61,48 +62,55 @@ Please refer to ezkl’s [GitHub repo](https://github.com/zkonduit/ezkl) for fur
 At a high level, the end-to-end zkML workflow comprises of:
 
 #### Setup
+
 - Train a ML model
-PyTorch is natively supported and is thoroughly tested
-Support for scikit-learn decision trees, random forests, and XGBoost has been recently added - we’re currently actively testing this
+  PyTorch is natively supported and is thoroughly tested
+  Support for scikit-learn decision trees, random forests, and XGBoost has been recently added - we’re currently actively testing this
 
 - Export the trained ML model to the ONNX format through torch.onnx.export()
 
 - Generate and calibrate a JSON settings file through ezkl.generate_settings() and ezk.calibrate_settings() respectively. These settings will then be used to create a quantized Halo2 circuit to represent the underlying ML model
-Settings file is to be shared with the verifier
+  Settings file is to be shared with the verifier
 
 - Compile the ONNX model through ezkl.compile_circuit()
 
 - Fetch the Structured Reference String (SRS) required for zkML
-SRS file is to be shared with the verifier
+  SRS file is to be shared with the verifier
 
 - Setup ezkl through ezkl.setup() to create the proving and verifying keys
-Verifying key is to be shared with the verifier
+  Verifying key is to be shared with the verifier
 
 #### Proof Generation
+
 - Generate a witness file through `ezkl.gen_witness()`
 - Perform a mock run through `ezkl.mock()` as a sanity check of the steps performed so far
 - Generate a proof for a given model output through `ezkl.prove()`
 - Proof file is to be shared with the verifier
 
 #### Proof Verification
+
 - Verify a proof through `ezkl.verify()`
 
 ## ezkl Detailed Workflow - using PyTorch
 
 ### Model Training
+
 Train a PyTorch model as you would usually do.
 
 ### Export to ONNX
 
 #### Inputs required
+
 - Trained PyTorch Model
 - A random tensor of the same shape as the model input feature vector
 - Path where to save the resultant ONNX model
 
 #### Output
+
 - ONNX model
 
 #### Sample code
+
 ```
 import onnx
 import torch
@@ -120,11 +128,13 @@ torch.onnx.export(model=model,                                       # trained m
 ```
 
 ### Install ezkl
+
 Installing ezkl is as simple as `pip install ezkl`.
 
 ### Generate Settings
 
 #### Inputs Required
+
 - `model`: The saved ONNX model from the previous step
 - `output`: Path where to save the resultant settings file
 - `py_run_args`: Some of the key arguments for ezkl that can be specified are the following:
@@ -134,9 +144,11 @@ Installing ezkl is as simple as `pip install ezkl`.
 - `batch_size`: has to be 1 in our use case, i.e., proof for a single prediction is to be generated
 
 #### Output
+
 A JSON settings file. These settings dictate the parameters required to generate the zk-circuit.
 
 #### Sample Code
+
 ```
 # define arguments
 run_args = ezkl.PyRunArgs()
@@ -163,6 +175,7 @@ except Exception as e:
 - `data`: A JSON file containing a dictionary of the feature values with a key of input_data. The dictionary values could either be a single set of feature values or multiple, all concatenated into a single list. These feature values will be used to calibrate the settings, therefore, they need to be as representative of the feature values as expected in the production (scaled values if the model expects to receive scaled values). The more data fed to calibrate_settings the more accurate (lower quantization errors) the resultant zk-circuit will be, albeit potentially at the cost of higher compute and memory requirements and longer proving times.
 
 #### Sample data format
+
 ```
 {"input_data": [[obs_1_feature_1, ..., obs_1_feature_n, obs_2_feature_1, ..., obs_2_feature_n, ..., obs_n_feature_1, ..., obs_n_feature_n]]}
 ```
@@ -176,9 +189,11 @@ except Exception as e:
 Refer to the Quantization Error section below for further details.
 
 #### Output
+
 - Calibrated JSON settings file (the original settings file provided to settings is overwritten)
 
 #### Sample Code
+
 ```
 # import dependencies
 import json
@@ -201,11 +216,14 @@ except Exception as e:
 ```
 
 #### Notes
+
 A fine balance needs to be achieved between the following:
+
 - compute requirements, proving time, and file sizes of the proof, verifying key, and proving key
 - quantization error
 
 #### Strategies to find the right balance:
+
 - try both `resources` and `accuracy` for the target argument
 - manually adjust the `input_scale`, `bits`, and `logrows` arguments in the generated settings file
 
@@ -214,11 +232,13 @@ Generally speaking, higher values for `input_scales` is required for larger & mo
 ### ezkl Compile the zk-circuit
 
 #### Inputs required
+
 - `model`: The saved ONNX model from one of the previous steps
 - `compiled_circuit`: Path where to save the resultant ezkl compiled zk-circuit
 - `settings_path`: JSON of the calibrated settings file from the previous step
 
 ### Output
+
 - Compiled zk-circuit, inclusive of the settings
 
 ### Sample Code
@@ -238,10 +258,12 @@ except Exception as e:
 ### Fetch SRS
 
 #### Input required
+
 - `srs_path`: Path where to save the resultant SRS file
 - `settings_path`: JSON of the calibrated settings file from one of the previous steps
 
 #### Output
+
 JSON of the SRS
 
 #### Sample code
@@ -260,12 +282,14 @@ except Exception as e:
 ### Setup ezkl
 
 #### Inputs required
+
 - `model`: ezkl compiled zk-circuit from one of the previous steps
 - `vk_path`: Path where to save the resultant verifying key
 - `pk_path`: Path where to save the resultant proving key
 - `srs_path`: JSON of the SRS generated in the previous step
 
 #### Output
+
 - Proving key
 - Verifying key
 
@@ -287,19 +311,24 @@ except Exception as e:
 ### Generate Witness file
 
 #### Inputs required
+
 - `data`: JSON of the input feature vector for which a proof is to be generated
 
 #### Sample data
+
 ```
 {"input_data": [[feature_1, feature_2, ..., feature_n_1, feature_n]]}
 ```
+
 - `model`: ezkl compiled zk-circuit from one of the previous steps
 - `output`: Path where to save the resultant witness file
 
 #### Output
+
 - JSON of the witness file
 
 #### Sample code
+
 ```
 # generate witness file
 try:
@@ -313,14 +342,18 @@ except Exception as e:
 ```
 
 ### Mock Run
+
 #### Inputs required
+
 - `witness`: JSON of the witness file from the previous step
 - `model`: ezkl compiled zk-circuit from one of the previous steps
 
 #### Output
+
 - Binary flag whether the mock run was successful or not
 
 #### Sample code
+
 ```
 # mock proof for sanity check
 try:
@@ -335,6 +368,7 @@ except Exception as e:
 ### Generate a Proof
 
 #### Inputs required
+
 - 'witness': JSON of the witness file from one of the previous steps
 - 'model': ezkl compiled zk-circuit from one of the previous steps
 - 'pk_path': Proving Key from one of the previous steps
@@ -343,9 +377,11 @@ except Exception as e:
 - 'proof_type': whether a single or an aggregated proof is required. possible values: single and for-aggr
 
 #### Output
+
 - proof file
 
 #### Sample code
+
 ```
 # generate proof
 try:
@@ -362,16 +398,20 @@ except Exception as e:
 ```
 
 ### Proof Verification
+
 #### Inputs required
+
 - `proof_path`: Proof file generated from the previous step
 - `settings_path`: JSON of the calibrated settings file from one of the previous steps
 - `vk_path`: Verifying Key from one of the previous steps
 - `srs_path`: JSON of the SRS from one of the previous steps
 
 #### Output
+
 Binary flag whether the proof verification was successful or not
 
 #### Sample code
+
 ```
 # verify proof
 try:
@@ -386,8 +426,10 @@ except Exception as e:
 ```
 
 ## Calculate Quantization Errors
+
 It is fairly straightforward to calculate and analyze the quantization error for multiple input feature vectors. The process essentially involves determining the zk-circuit output and that of the underlying ML model and comparing the difference between these two.
 For a trained PyTorch model converted to an ONNX model that outputs predicted logits for a given input feature vector, the following code can be used to quantify the quantization error across multiple observations:
+
 ```
 # import dependencies
 import ezkl, json, onnx, onnxruntime
@@ -410,7 +452,7 @@ def generate_settings(model):
                                 py_run_args=run_args)
     except Exception as e:
         print(f"An error occurred: {e}")
-        
+
 async def calibrate_settings(model, input_file):
     # calibrate the settings file
     try:
@@ -447,7 +489,7 @@ def get_ezkl_output(witness_output, settings_file):
         settings = json.load(f)
     ezkl_output = ezkl.vecu64_to_float(outputs[0][0], settings["model_output_scales"][0])
     return ezkl_output
-    
+
 def get_onnx_output(model, input_file):
     # generate the ML model output from the ONNX file
     onnx_model = onnx.load(f"{model}.onnx")
@@ -463,8 +505,8 @@ def get_onnx_output(model, input_file):
 def compare_outputs(zk_output, onnx_output):
     # calculate percentage difference between the 2 outputs
     return ((onnx_output/zk_output) - 1) * 100
-    
-# generate and calibrate settings - assuming that the trained model is called 'model' and the input 
+
+# generate and calibrate settings - assuming that the trained model is called 'model' and the input
 # data required for calibration is saved as 'input.json'
 generate_settings("model")
 await calibrate_settings(model="model", input_file="input") # '.json' is omitted as it's part of the function
