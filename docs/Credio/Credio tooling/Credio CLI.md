@@ -73,6 +73,9 @@ credio artifact download <ARTIFACT_ID>
 The later approach is much more convenient and developer-friendly.
 
 ## Submit model
+
+<img src="/img/ml-quant/Model submission.png" alt="" />
+
 Submitting a model is a progress that the Modeler accepts to join a challenge by providing their ZKML model’s data to the Credio smart contract (short definition). The supported ZKML model’s data format at the moment is the content’s identifier in the IPFS network of the ZKML model that at least contains the following information:
 The ZK circuit of the model;
 The necessary ZK verifying keys/smart contracts;
@@ -95,6 +98,8 @@ Of course, this submission step using Credio CLI is frankly to obtain the IPFS c
 
 ## Consumption
 
+<img src="/img/ml-quant/Model deployment.png" alt="" />
+
 ### Register endpoint
 For exposing local inference servers to the Internet, the Credio platform allows verified Modelers to start authorized secure connection (tunneling) to the Credio gateway and open a publicly-accessible endpoint for serving inference requests.
 To register an endpoint for a specific submitted ZKML model, the Modeler can use the following command:
@@ -110,5 +115,7 @@ credio model serve --port <LOCAL_PORT> --private-key <PRIVATE_KEY_PATH>
 where LOCAL_PORT is the listening port of the Modeler’s local inference server and PRIVATE_KEY_PATH is the associated private key file that is used to authenticate the connection. The private key must respect the public key registered for the endpoint.
 
 ## Tunneling mechanism 
+
+<img src="/img/ml-quant/Tunnelling mechanism.png" alt="" />
 
 [Detail]
