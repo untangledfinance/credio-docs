@@ -26,21 +26,9 @@ spec:
     spec:
       containers:
         - name: $SERVICE_NAME
-          image: "470758053753.dkr.ecr.eu-west-2.amazonaws.com/$SERVICE_NAME:$RELEASE_VERSION"
+          image: "europe-west2-docker.pkg.dev/untangled-v3/untangled-backend/$SERVICE_NAME:$RELEASE_VERSION"
           imagePullPolicy: "Always"
           ports:
             - containerPort: 3000
-          resources:
-            limits:
-              cpu: 100m
-              memory: 200Mi
-            requests:
-              cpu: 50m
-              memory: 100Mi
-      nodeSelector:
-        type: $NODE_SELECTOR
-      tolerations:
-        - effect: NoSchedule
-          key: type
-          operator: Equal
-          value: $NODE_SELECTOR
+          resources: {}
+

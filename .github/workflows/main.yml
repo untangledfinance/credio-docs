@@ -5,8 +5,8 @@ on:
       - main
 
 env:
-  AWS_REGION: eu-west-2
-  DOCKER_REGISTRY: 470758053753.dkr.ecr.eu-west-2.amazonaws.com
+  AWS_REGION: europe-west2
+  DOCKER_REGISTRY: europe-west2-docker.pkg.dev/untangled-v3/untangled-backend
   SERVICE_NAME: rwawise-docs
   EKS_CLUSTER_NAME: eks-prod
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -14,7 +14,7 @@ env:
 jobs:
   prod:
     name: "Deploy app to prod env"
-    runs-on: dev-runner
+    runs-on: gke-16
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout ${{ github.repository }}
@@ -24,16 +24,8 @@ jobs:
           echo "RELEASE_VERSION=prod-${{ github.run_id }}-${{ github.run_attempt }}" >> $GITHUB_ENV
           echo "ENV=prod" >> $GITHUB_ENV
           echo "NODE_SELECTOR=untangled-prod" >> $GITHUB_ENV
-      - name: ECR Login
-        run: |
-          echo $AWS_REGION 
-          echo $DOCKER_REGISTRY 
-          echo $RELEASE_VERSION
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $DOCKER_REGISTRY
       - name: Build images
         run: ./deployment/build.sh $DOCKER_REGISTRY $AWS_REGION $SERVICE_NAME $RELEASE_VERSION
-      - name: Set config
-        run: aws eks --region eu-west-2 update-kubeconfig --name $EKS_CLUSTER_NAME
       - name: Deploy app
         run: |
           envsubst < deployment/app.yaml > deployment/a.yaml | kubectl apply -f deployment/a.yaml
