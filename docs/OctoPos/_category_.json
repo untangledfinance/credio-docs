@@ -1,0 +1,8 @@
+{
+    "label": "OctoPos",
+    "position": 4,
+    "link": {
+        "type": "generated-index",
+        "description": "OctoPos (OctoVault Position Tracker) is a modular, real-time DeFi position tracking engine for the Stellar blockchain. It aggregates user positions across multiple Stellar DeFi protocols, prices them via a unified 5-feed priority chain, and exposes a REST API with authentication and rate limiting."
+    }
+}

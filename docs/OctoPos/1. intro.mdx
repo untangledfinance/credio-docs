@@ -1,0 +1,71 @@
+# Introduction to OctoPos
+
+## What is OctoPos?
+
+**OctoPos (OctoVault Position Tracker)** is a modular, real-time DeFi position tracking engine for the Stellar blockchain. It aggregates user positions across multiple Stellar DeFi protocols, prices them via a unified 5-feed priority chain, resolves contract addresses to known types, persists historical data in MongoDB, and exposes a REST API with authentication and rate limiting.
+
+OctoPos is part of the Untangled Finance ecosystem — the data backbone that powers OctoVault's real-time NAV calculations and portfolio analytics.
+
+## Core Capabilities
+
+- **Multi-protocol aggregation** — Tracks positions across Blend, Aquarius, SoroSwap, Phoenix, FxDAO, and native Stellar wallets in a single query
+- **5-feed price priority chain** — Aquarius AMM → Wrapped Assets → Blend Oracle → StellarExpert → DeFiLlama, with automatic fallback and cross-validation
+- **Real-time tracking** — 60-second position collection loop with raw snapshots, hourly OHLC, and daily OHLC rollups
+- **YAML-driven configuration** — Token addresses, pool configs, and thresholds managed externally, not in code
+- **Plugin extensibility** — New protocols added via drop-in TypeScript plugins; no core changes required
+- **REST API** — Authenticated endpoints for positions, history, yield, risk, and protocol stats
+
+## Architecture Layers
+
+| Layer | Name | Responsibility |
+|-------|------|---------------|
+| 1 | Connectors | Raw SDK wrappers for external services (Soroban RPC, Horizon, DeFiLlama, etc.) |
+| 2 | Adapters | Protocol-specific position extraction (Blend, Aquarius, SoroSwap, Phoenix, FxDAO, StellarWallet) |
+| 3 | Feeds | Price data from multiple sources (5-feed priority chain) |
+| 4 | Data | MongoDB models, aggregation, health monitoring |
+| 5 | Services | Orchestration, pricing, monitoring |
+| 6 | API | REST endpoints, auth, rate limiting |
+
+## REST API
+
+OctoPos exposes a REST API with API key authentication and tiered rate limiting:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/positions/:addr` | GET | All positions for a Stellar address |
+| `/summary` | GET | Portfolio summary with total value |
+| `/history` | GET | Historical portfolio snapshots |
+| `/yield` | GET | Yield metrics per protocol |
+| `/risk` | GET | Risk metrics (health factor, exposure) |
+| `/events` | GET | Position lifecycle events |
+| `/protocols` | GET | List supported protocols |
+| `/protocols/:id/stats` | GET | Protocol-level statistics |
+| `/health` | GET | System health + data freshness |
+
+API key tiers: **Free** (rate-limited) · **Standard** · **Partner** (custom limits).
+
+See [Architecture](./architecture) for full design principles.
+
+## Supported Protocols
+
+| Protocol | Type | OctoPos Adapter |
+|----------|------|---------------|
+| Blend Capital | Lending | `blend` — supply (bTokens), borrow (dTokens) |
+| Aquarius AMM | Liquidity Pool | `aquarius` — LP shares + claimable AQUA rewards |
+| SoroSwap | Liquidity Pool | `soroswap` — LP token valuation |
+| Phoenix DeFi Hub | Staking + LP | `phoenix` — LP + staking positions + pending rewards |
+| FxDAO | CDP | `fxdao` — collateral deposited + debt minted |
+| Native Stellar | Wallet | `stellar-wallet` — XLM balance + all trustlines |
+| Untangled Vaults | ERC-4626 Vault | `untangled-vault` — vault share balances, NAV pricing |
+
+## Supported Price Feeds
+
+| Priority | Feed | Source | Best For |
+|----------|------|--------|----------|
+| 0 | Aquarius AMM | Aquarius AMM swap quotes | Stellar-native tokens with liquid pools |
+| 1 | Wrapped Asset | Underlying price × rate | Wrapped/yield-bearing tokens (e.g., yXLM) |
+| 2 | Blend Oracle | Blend on-chain oracle | Assets in Blend pools |
+| 3 | StellarExpert | StellarExpert API | Stellar Classic assets, known Soroban tokens |
+| 4 | DeFiLlama | DeFiLlama aggregator | Broad coverage, last resort |
+
+See [Architecture](./architecture) and [Adapters & Price Feeds](./adapters) for deeper documentation.

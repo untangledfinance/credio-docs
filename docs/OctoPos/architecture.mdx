@@ -1,0 +1,127 @@
+# OctoPos Architecture
+
+## System Overview
+
+```mermaid
+graph TD
+    subgraph L6["Layer 6 — API"]
+        API[REST API<br/>/positions · /summary · /history<br/>/yield · /risk · /events<br/>/protocols · /health]
+    end
+
+    subgraph L5["Layer 5 — Services"]
+        AGG[AggregatorService<br/>collectPositions · pricePositions<br/>buildSnapshot]
+        PRC[UnifiedPricingService<br/>5-feed priority chain + cache]
+        MON[SourceHealthMonitor<br/>Slack alerts on status change]
+    end
+
+    subgraph L23["Layers 2–3 — Adapters, Feeds & Resolvers"]
+        AD[Protocol Adapters<br/>Blend · Aquarius · SoroSwap<br/>Phoenix · FxDAO · StellarWallet]
+        FD[Price Feeds<br/>Aquarius · Wrapped Asset<br/>Blend Oracle · StellarExpert · DeFiLlama]
+        RES[Resolvers<br/>TokenRegistry · ContractResolver]
+    end
+
+    subgraph L1["Layer 1 — Connectors"]
+        CON[Soroban · Horizon · DeFiLlama<br/>Aquarius · SoroSwap · Phoenix · FxDAO<br/>StellarExpert]
+    end
+
+    subgraph L4["Layer 4 — Data"]
+        DB[(MongoDB<br/>10 collections)]
+        RD[(Redis<br/>Distributed locking)]
+    end
+
+    subgraph EXT["External Services"]
+        RPC[Soroban RPC]
+        HOR[Horizon API]
+        DL[DeFiLlama API]
+        EXP[stellar.expert]
+        AQP[Aquarius AMM API]
+        CDP[Protocol CDPs]
+    end
+
+    API --> AGG
+    AGG --> AD & FD
+    AD & FD --> CON
+    AGG --> MON
+    AGG --> PRC
+    PRC --> FD
+    CON --> EXT
+    AGG --> DB & RD
+```
+
+## Layers
+
+| Layer | Name | Responsibility |
+|-------|------|---------------|
+| 1 | Connectors | SDK wrappers for Soroban RPC, Horizon, DeFiLlama, protocol APIs |
+| 2 | Adapters | Protocol-specific position extraction (Blend, Aquarius, SoroSwap, Phoenix, FxDAO, StellarWallet, UntangledVaults) |
+| 3 | Feeds | Price data from 6-source priority chain (Aquarius → Wrapped Asset → Blend Oracle → StellarExpert → DeFiLlama → Untangled Vault) |
+| 3b | Resolvers | Token symbol & contract type resolution |
+| 3c | Introspection | On-chain contract state reading (reserves, TVL) |
+| 4 | Data | MongoDB models, OHLC aggregation, health monitoring |
+| 5 | Services | Orchestration (AggregatorService), pricing (UnifiedPricingService), health alerts |
+| 6 | API | REST endpoints, API key auth, rate limiting, Gzip compression |
+
+## Design Principles
+
+1. **Mainnet-only** — No testnet support. Stellar mainnet prices and contracts only.
+2. **YAML-driven config** — Token addresses, pool configs, and thresholds live in `tokens.yaml`, not in code.
+3. **Priority feed chain** — 5 price feeds tried in order; first non-null result wins with cross-validation.
+4. **Plugin-first extensibility** — New protocols added via drop-in TypeScript plugins; no core changes.
+5. **Lazy registration** — Built-in adapters/feeds registered on first use to keep startup fast.
+6. **Tiered aggregation** — Raw snapshots (60s) → hourly OHLC → daily OHLC for space-efficient history.
+7. **Resilient** — Each adapter/feed is independent; failures are isolated and health-monitored with Slack alerts.
+8. **G-address resolution** — C-addresses (Soroban contracts) are probed to detect type and resolve underlying G-addresses.
+
+## Data Flow
+
+```mermaid
+flowchart LR
+    A[collectPositions] --> B[pricePositions]
+    B --> C[buildSnapshot]
+    C --> D[Persist to MongoDB]
+    D --> E[Upsert PositionState<br/>Save PositionSnapshot<br/>Update SourceHealth]
+```
+
+## Price Feed Chain
+
+```mermaid
+flowchart TD
+    P[Token Request] --> P0[Aquarius AMM<br/>Priority 0]
+    P0 --> |null| P1[Wrapped Asset<br/>Priority 1]
+    P1 --> |null| P2[Blend Oracle<br/>Priority 2]
+    P2 --> |null| P3[StellarExpert<br/>Priority 3]
+    P3 --> |null| P4[DeFiLlama<br/>Priority 4]
+    P4 --> |null| P5[Untangled Vault<br/>Priority 5]
+    P0 --> |result| R[Return Price]
+    P1 --> |result| R
+    P2 --> |result| R
+    P3 --> |result| R
+    P4 --> |result| R
+    P5 --> |result| R
+```
+
+## Tracker Loop
+
+```mermaid
+flowchart TD
+    T1[Every 60s<br/>Collect positions] --> T2[Price positions<br/>Build snapshot]
+    T2 --> T3[Save to MongoDB<br/>Update state]
+    T3 --> T4[Health check<br/>Slack alert if changed]
+    T4 --> T5[Hourly: Roll up<br/>raw → OHLC]
+    T5 --> T6[Daily midnight UTC<br/>OHLC → daily]
+```
+
+## MongoDB Collections
+
+| Collection | Purpose | TTL |
+|-----------|---------|-----|
+| `octopos_position_snapshots` | Full portfolio snapshots (historical) | 90 days |
+| `octopos_position_states` | Current position state | None |
+| `octopos_event_logs` | Lifecycle events (deposit, liquidation, etc.) | 1 year |
+| `octopos_price_cache` | Cached token prices | 5 minutes |
+| `octopos_source_health` | Per-adapter health metrics | 30 days |
+| `octopos_hourly_aggregates` | Hourly OHLC rollups | 90 days |
+| `octopos_daily_aggregates` | Daily OHLC rollups | Permanent |
+| `octopos_contract_types` | Resolved Soroban contract types | None |
+| `octopos_tracked_addresses` | Addresses configured for tracking | None |
+| `octopos_api_keys` | API key authentication records | None |

@@ -1,0 +1,229 @@
+# OctoPos Adapters & Price Feeds
+
+## Protocol Adapters (Layer 2)
+
+Each adapter implements the `ProtocolAdapter` interface:
+
+```typescript
+interface ProtocolAdapter {
+  readonly protocolId: string;
+  readonly protocolName: string;
+  readonly version: string;
+  supportsAddress(address: string): boolean;
+  getPositions(
+    address: string,
+    params?: AdapterParams
+  ): Promise<NormalisedPosition[]>;
+  healthCheck(): Promise<AdapterHealth>;
+}
+```
+
+### Position Types
+
+```typescript
+enum PositionType {
+  SUPPLY = 'supply',   // Lending supply (e.g., Blend bTokens)
+  BORROW = 'borrow',    // Lending debt (e.g., Blend dTokens)
+  LP = 'lp',            // Liquidity pool shares
+  WALLET = 'wallet',     // Native token/trustline balances
+  COLLATERAL = 'collateral', // CDP collateral (e.g., FxDAO)
+  STAKE = 'stake',       // Staked tokens (e.g., Phoenix staking)
+}
+```
+
+### Adapter Registry
+
+| Adapter | Protocol | Position Types | Key Data Source |
+|---------|----------|----------------|-----------------|
+| `blend` | Blend Capital | SUPPLY, BORROW | Blend SDK — bToken/dToken balances, reserve rates |
+| `stellar-wallet` | Native Stellar | WALLET | Horizon API — XLM balance + all trustlines |
+| `aquarius` | Aquarius AMM | LP | Soroban RPC — LP share balance, claimable AQUA rewards |
+| `soroswap` | SoroSwap | LP | Soroban RPC — Factory pair lookup, LP token balance, reserves |
+| `phoenix` | Phoenix DeFi Hub | LP, STAKE | Soroban RPC — Pool shares, staking info + pending rewards |
+| `fxdao` | FxDAO | COLLATERAL, BORROW | Soroban RPC — Vault CDP: collateral deposited, debt minted |
+| `untangled-vault` | Untangled Vaults | SUPPLY | Soroban RPC — ERC-4626 vault share balances, NAV per share |
+
+### Adapter Details
+
+#### Blend
+
+- Reads positions from Blend lending pools using `@blend-capital/blend-sdk`
+- Supports multiple pools per address (configurable via `params.pools`)
+- Computes reserve breakdown: per-asset collateral, supply, and borrowed amounts
+- Uses reserve rates (`bRate`, `dRate`) to convert bToken/dToken balances to underlying
+- Prices assets via Blend's on-chain oracle
+- Outputs health factor per pool + overall health
+- Pool addresses loaded from `tokens.yaml` configuration
+
+#### StellarWallet
+
+- Queries Horizon for account balances (XLM native + all trustlines)
+- Detects C-addresses (Soroban contracts) and probes them for token metadata (`name()`, `symbol()`, `decimals()`)
+- Uses the **Token Registry** to resolve contract addresses to human-readable symbols
+- Returns WALLET positions with symbol, decimals, and human-readable amounts
+- Handles both G-addresses (classic Stellar) and C-addresses (Soroban contracts)
+
+#### Aquarius
+
+- Reads LP share balances from Aquarius pool contracts
+- Extracts claimable AQUA rewards via `get_rewards_info()`
+- **Decomposes LP shares into underlying tokens** — each underlying token can be individually priced
+- Uses `TokenRegistry.resolveDecimals()` to get per-token decimals (e.g., 8 for BTC-based tokens)
+- Pool addresses loaded from `tokens.yaml` configuration
+
+#### SoroSwap
+
+- Queries SoroSwap factory for pair addresses
+- Reads LP token balance for the user in each pair
+- Extracts pair reserves for underlying value calculation
+- Supports configurable pool list via `params.pools`
+
+#### Phoenix
+
+- Queries Phoenix pool contracts for LP share balance
+- Also tracks staking positions and pending rewards
+- Returns both LP and STAKE position types
+- Reads from `query_pool_info()`, `query_share()`, `query_user_stake()`
+
+#### FxDAO
+
+- Reads CDP vault positions from FxDAO
+- Returns COLLATERAL position (XLM deposited) and BORROW position (xUSD minted)
+- Computes collateral ratio from on-chain data
+- Reads from `get_vault(user)`
+
+#### UntangledVaults
+
+- Reads ERC-4626 vault share balances from Untangled V2 Soroban contracts
+- Supports both G-addresses (investors) and C-addresses (treasury contracts)
+- Vault shares are Soroban tokens (not classic Stellar trustlines) — invisible to the StellarWallet adapter, so this adapter fills that gap
+- Returns a SUPPLY position for each vault in which the address holds shares
+- Vaults configured in `tokens.yaml` under `vaults:` — each vault specifies `symbol`, `underlyingSymbol`, `underlyingContract`, and `decimals`
+- Share prices computed by `UntangledVaultFeed`: `sharePrice = navPerShare × underlyingPrice`
+
+### Resolvers
+
+#### ContractPositionResolver
+
+- Resolves C-addresses (Soroban contracts) to their type via **storage key probing**
+- Detects contract types: Vault (Untangled V2), Blend Pool, Token (SAC), Aquarius LP
+- Caches results in MongoDB (`octopos_contract_types` collection)
+- Used by StellarWallet adapter for C-address detection
+
+#### TokenRegistry
+
+- Resolves Stellar contract addresses to human-readable symbols
+- Strategy: YAML config lookup → on-chain `symbol()` call → cache
+- Known tokens loaded from `tokens.yaml` (BLND, AQUA, EURC, yXLM, etc.)
+- In-memory LRU cache bounded to configurable max size (default 500 entries)
+
+### Plugin System
+
+The factory uses a **Plugin Registry** pattern. Both built-in adapters and external plugins are registered in the same `PluginRegistry` singleton.
+
+```typescript
+import { getRegistry, initPlugins, useAdapter } from './factory';
+
+// Initialize plugins at startup (loads from plugins/ directory)
+await initPlugins();
+
+// Create adapter instances (works for both built-in and plugins)
+const blend = useAdapter('blend');
+const custom = useAdapter('my-protocol'); // → plugin adapter (auto-discovered)
+```
+
+See the plugin system documentation in the main OctoPos architecture docs for the full guide on creating plugins.
+
+---
+
+## Price Feeds (Layer 3)
+
+Each feed implements the `PriceFeed` interface:
+
+```typescript
+interface PriceFeed {
+  readonly feedId: string;
+  readonly priority: number; // Lower = tried first
+  getPrice(tokenAddress: string): Promise<PriceResult | null>;
+  healthCheck(): Promise<FeedHealth>;
+}
+```
+
+### Feed Priority Chain
+
+| Priority | Feed | Source | Best For |
+|----------|------|--------|----------|
+| 0 | `aquarius` | Aquarius AMM swap quotes | Stellar-native tokens with liquid pools |
+| 1 | `wrapped-asset` | Underlying price × rate | Wrapped/yield-bearing tokens (e.g., yXLM) |
+| 2 | `blend-oracle` | Blend on-chain oracle | Assets in Blend pools |
+| 3 | `stellar-expert` | StellarExpert API | Stellar Classic assets, known Soroban tokens |
+| 4 | `defillama` | DeFiLlama aggregator | Broad coverage, last resort |
+| 5 | `untangled-vault` | On-chain NAV (ERC-4626) | Untangled Vault share tokens (e.g. USDyc2) |
+
+### Feed Details
+
+#### AquariusFeed — Priority 0
+
+- Uses Aquarius AMM swap quotes to derive token prices
+- Best for Stellar-native tokens with active liquidity pools
+- Falls back to next feed if no pool exists for the token
+
+#### BlendOracleFeed — Priority 2
+
+- Reads prices from Blend's on-chain oracle (typically Reflector)
+- Same prices Blend uses internally for health factor calculations
+- Caches pool metadata (oracle address + reserve list) with configurable TTL
+- Only prices assets that exist in Blend pool reserve lists
+
+#### WrappedAssetFeed — Priority 1
+
+- Prices wrapped/yield-bearing tokens (e.g., yXLM → XLM)
+- Strategy: look up underlying asset price × exchange rate
+- Exchange rate sources: `contract` (on-chain call) or `fixed` (from config)
+- Wrapped assets configured in `tokens.yaml` under `wrappedAssets`
+
+#### StellarExpertFeed — Priority 3
+
+Handles multiple token address formats:
+- `"native"` → XLM price
+- `"SYMBOL:ISSUER"` → Stellar Classic asset
+- `"C..."` (Soroban contract) → contract → asset mapping → price
+
+#### DefiLlamaFeed — Priority 4
+
+- Broad coverage aggregator — last resort in the priority chain
+- **Supports CoinGecko ID mappings** for cross-chain assets (e.g., SolvBTC → solv-btc, PYUSD → paypal-usd)
+- Enables DeFiLlama pricing for tokens not natively indexed on Stellar
+- Maps Stellar token addresses to DeFiLlama identifiers
+
+#### UntangledVaultFeed — Priority 5
+
+- Prices ERC-4626 vault share tokens using on-chain NAV per share
+- Formula: `sharePrice (USD) = navPerShare × underlyingPrice`
+- NAV per share: `totalAssets() / totalSupply()` (in underlying token units), read directly from the vault contract
+- NAV values cached for 5 minutes to reduce on-chain RPC calls (oracle-driven, infrequent updates)
+- **$1.00 stablecoin fallback** only for vaults with USDC as underlying (USDC contract: `CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75`)
+- Non-USDC vaults (e.g. wBTC-backed) require the underlying price from the pricing chain — returns null if unavailable
+- Used for vault share tokens with no AMM liquidity, where standard feeds return null
+
+### UnifiedPricingService
+
+Orchestrates the feed chain:
+
+1. **Cache check** — In-memory cache with configurable TTL (default 30s)
+2. **Priority fallthrough** — Tries feeds in order; first non-null result wins
+3. **Cross-validation** — Compares prices from two sources, warns if divergence exceeds configured threshold (default 5%)
+4. **Batch pricing** — `getPrices(addresses[])` for parallel multi-token lookups
+
+```typescript
+const feeds = [
+  new AquariusFeed(),
+  new BlendOracleFeed(),
+  new WrappedAssetFeed(),
+  new StellarExpertFeed(),
+  new DefiLlamaFeed(),
+  new UntangledVaultFeed(),
+];
+const pricing = new UnifiedPricingService(feeds, 30_000); // 30s cache
+const price = await pricing.getPrice('native'); // XLM price
+```
