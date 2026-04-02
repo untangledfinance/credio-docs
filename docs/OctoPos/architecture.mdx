@@ -65,7 +65,7 @@ graph TD
 
 1. **Mainnet-only** — No testnet support. Stellar mainnet prices and contracts only.
 2. **YAML-driven config** — Token addresses, pool configs, and thresholds live in `tokens.yaml`, not in code.
-3. **Priority feed chain** — 5 price feeds tried in order; first non-null result wins with cross-validation.
+3. **Priority feed chain** — 6 price feeds tried in order; first non-null result wins with cross-validation.
 4. **Plugin-first extensibility** — New protocols added via drop-in TypeScript plugins; no core changes.
 5. **Lazy registration** — Built-in adapters/feeds registered on first use to keep startup fast.
 6. **Tiered aggregation** — Raw snapshots (60s) → hourly OHLC → daily OHLC for space-efficient history.

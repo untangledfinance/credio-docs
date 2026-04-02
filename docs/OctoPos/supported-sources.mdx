@@ -1,5 +1,37 @@
 # Supported Sources
 
+## Protocol Support Status
+
+OctoPos continuously expands its protocol coverage. The table below reflects the current state of integration.
+
+### Position Tracking
+
+| Protocol | Position Types | Status | Notes |
+|----------|---------------|--------|-------|
+| **Blend Capital** | `SUPPLY`, `BORROW` | ✅ Fully Supported | 5 V2 pools configured |
+| **Aquarius AMM** | `LP` | ✅ Fully Supported | 20+ pools configured |
+| **SoroSwap** | `LP` | ✅ Fully Supported | Auto-detects pair addresses via factory |
+| **Phoenix DeFi Hub** | `LP`, `STAKE` | ✅ Fully Supported | Staking + LP positions |
+| **FxDAO** | `COLLATERAL`, `BORROW` | ✅ Fully Supported | Vault CDP tracking |
+| **Native Stellar Wallet** | `WALLET` | ✅ Fully Supported | G-addresses and C-addresses |
+| **Untangled Vaults** | `SUPPLY` | ✅ Fully Supported | ERC-4626 NAV pricing |
+
+### Pricing Coverage
+
+| Price Feed | Status | Coverage |
+|------------|--------|----------|
+| **Blend On-Chain Oracle** | ✅ | All Blend V2 pool assets |
+| **Aquarius AMM** | ✅ | 20+ major Stellar pools |
+| **DeFiLlama + CoinGecko** | ✅ | 20+ tokens (BTC, ETH, stablecoins, DeFi) |
+| **StellarExpert** | ✅ | Stellar Classic assets |
+| **Pool-Derived Pricing** | ✅ Active / 🟡 Expanding | Aquarius pools active; Soroswap pool readout in progress |
+| **Wrapped-Asset Feed** | ✅ | Fixed-rate + on-chain rate sources |
+| **Untangled Vault NAV** | ✅ | USDyc2 and future ERC-4626 vaults |
+
+> 🟡 **Expanding** — Pool-derived pricing currently covers Aquarius pools. Support for deriving prices from SoroSwap pair reserves is under active development.
+
+---
+
 ## External Data Sources
 
 OctoPos integrates with the following external services and data providers:
@@ -211,6 +243,20 @@ Monitors adapter health and sends Slack alerts on status changes:
 - **Health statuses:** `healthy` → `degraded` → `down`
 - **Debounce:** Alert fires only after ≥2 consecutive failures
 - **Cooldown:** 15-minute cooldown between alerts to prevent alert storms
+
+## Protocol Roadmap
+
+OctoPos is actively expanding its coverage across the Stellar DeFi ecosystem.
+
+### In Progress
+- **Soroswap pool-derived pricing** — Enabling precise LP token valuation by reading Soroswap pair reserves directly, complementing the existing DeFiLlama fallback.
+- **Pool coverage expansion** — Continuously adding newly launched pools across supported protocols.
+
+### Planned
+- **Multi-source price aggregation** — Cross-validate prices across Blend Oracle, Aquarius, and DeFiLlama to detect anomalies and improve reliability.
+- **Additional protocol integrations** — Expanding support as new Stellar DeFi protocols launch.
+
+---
 
 ## Event Types
 
