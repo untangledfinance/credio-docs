@@ -8,8 +8,8 @@ OctoPos continuously expands its protocol coverage. The table below reflects the
 
 | Protocol | Position Types | Status | Notes |
 |----------|---------------|--------|-------|
-| **Blend Capital** | `SUPPLY`, `BORROW` | ✅ Fully Supported | 5 V2 pools configured |
-| **Aquarius AMM** | `LP` | ✅ Fully Supported | 20+ pools configured |
+| **Blend Capital** | `SUPPLY`, `BORROW` | ✅ Fully Supported | V2 lending pools |
+| **Aquarius AMM** | `LP` | ✅ Fully Supported | Major Stellar pools |
 | **SoroSwap** | `LP` | ✅ Fully Supported | Auto-detects pair addresses via factory |
 | **Phoenix DeFi Hub** | `LP`, `STAKE` | ✅ Fully Supported | Staking + LP positions |
 | **FxDAO** | `COLLATERAL`, `BORROW` | ✅ Fully Supported | Vault CDP tracking |
@@ -21,246 +21,142 @@ OctoPos continuously expands its protocol coverage. The table below reflects the
 | Price Feed | Status | Coverage |
 |------------|--------|----------|
 | **Blend On-Chain Oracle** | ✅ | All Blend V2 pool assets |
-| **Aquarius AMM** | ✅ | 20+ major Stellar pools |
-| **DeFiLlama + CoinGecko** | ✅ | 20+ tokens (BTC, ETH, stablecoins, DeFi) |
+| **Aquarius AMM** | ✅ | Major Stellar pools |
+| **DeFiLlama + CoinGecko** | ✅ | Cross-chain tokens |
 | **StellarExpert** | ✅ | Stellar Classic assets |
-| **Pool-Derived Pricing** | ✅ Active / 🟡 Expanding | Aquarius pools active; Soroswap pool readout in progress |
+| **Pool-Derived Pricing** | ✅ | Aquarius pools |
 | **Wrapped-Asset Feed** | ✅ | Fixed-rate + on-chain rate sources |
 | **Untangled Vault NAV** | ✅ | USDyc2 and future ERC-4626 vaults |
 
-> 🟡 **Expanding** — Pool-derived pricing currently covers Aquarius pools. Support for deriving prices from SoroSwap pair reserves is under active development.
-
 ---
-
-## External Data Sources
-
-OctoPos integrates with the following external services and data providers:
-
-### Blockchain & Protocol APIs
-
-| Source | Type | Usage |
-|--------|------|-------|
-| **Soroban RPC** | Stellar node | Contract state reading, token metadata, LP reserves |
-| **Horizon API** | Stellar | Native XLM balance, trustline balances, account info |
-| **Blend SDK** | Protocol SDK | Blend Capital lending pool positions, bToken/dToken balances |
-| **Aquarius AMM API** | Protocol API | Pool info, LP pricing, claimable AQUA rewards |
-| **stellar.expert** | Price API | Token prices for Stellar Classic assets |
-
-### Price Aggregation
-
-| Source | Type | Coverage |
-|--------|------|----------|
-| **Aquarius AMM** | DEX pricing | Stellar-native tokens with active liquidity pools |
-| **Blend On-Chain Oracle** | Protocol oracle | Assets in Blend lending pools |
-| **DeFiLlama** | Aggregator | Broad multi-chain coverage, CoinGecko-backed |
-| **CoinGecko** | Fallback via DeFiLlama | Cross-chain assets (SolvBTC, PYUSD, EURC, etc.) |
 
 ## Supported Protocols
 
-### Blend Capital
+### Blend Capital (Lending)
 
-| Detail | Value |
-|--------|-------|
-| Type | Lending protocol |
-| Blockchain | Stellar Soroban |
-| Adapter | `blend` |
-| Position Types | `SUPPLY`, `BORROW` |
-| Key Data | bToken/dToken balances, reserve rates, health factor |
-| Pool Addresses | Configured in `tokens.yaml` |
+**Type:** Lending protocol on Stellar Soroban
 
-### Aquarius AMM
+**Position Types:**
+- `SUPPLY` — Deposited collateral (bTokens)
+- `BORROW` — Borrowed assets (dTokens)
 
-| Detail | Value |
-|--------|-------|
-| Type | Liquidity pool (AMM) |
-| Blockchain | Stellar Soroban |
-| Adapter | `aquarius` |
-| Position Types | `LP` |
-| Key Data | LP share balance, claimable AQUA rewards, underlying token decomposition |
-| Introspection | Reads Aquarius pool reserves |
+**Key Data:**
+- bToken/dToken balances
+- Reserve rates (bRate, dRate)
+- Health factor
+- Collateral and liability values in USD
 
-### SoroSwap
+**Pool Types:**
+- Fixed-rate pools with predetermined yields
+- Variable-rate pools with dynamic yields
 
-| Detail | Value |
-|--------|-------|
-| Type | Liquidity pool (AMM) |
-| Blockchain | Stellar Soroban |
-| Adapter | `soroswap` |
-| Position Types | `LP` |
-| Key Data | Factory pair lookup, LP token balance, pair reserves |
-| Introspection | Reads SoroSwap pair reserves |
+### Aquarius AMM (Liquidity Pool)
+
+**Type:** Automated Market Maker (AMM) on Stellar Soroban
+
+**Position Types:**
+- `LP` — Liquidity pool shares
+
+**Key Data:**
+- LP share balance
+- Underlying token decomposition
+- Claimable AQUA rewards
+
+### SoroSwap (Liquidity Pool)
+
+**Type:** Liquidity pool via factory contract
+
+**Position Types:**
+- `LP` — Factory-created pair shares
+
+**Key Data:**
+- Pair address lookup via factory
+- LP token balance
+- Pair reserves
 
 ### Phoenix DeFi Hub
 
-| Detail | Value |
-|--------|-------|
-| Type | Staking + LP |
-| Blockchain | Stellar Soroban |
-| Adapter | `phoenix` |
-| Position Types | `LP`, `STAKE` |
-| Key Data | Pool shares, staking info, pending rewards |
-| Contract Methods | `query_pool_info()`, `query_share()`, `query_user_stake()` |
+**Type:** Staking + Liquidity Pool
 
-### FxDAO
+**Position Types:**
+- `LP` — Pool LP shares
+- `STAKE` — Staked tokens
 
-| Detail | Value |
-|--------|-------|
-| Type | Collateral Debt Position (CDP) |
-| Blockchain | Stellar Soroban |
-| Adapter | `fxdao` |
-| Position Types | `COLLATERAL`, `BORROW` |
-| Key Data | Vault collateral (XLM deposited), debt minted (xUSD), collateral ratio |
-| Contract Methods | `get_vault(user)` |
+**Key Data:**
+- Pool shares
+- Staking info
+- Pending rewards
+
+### FxDAO (CDP)
+
+**Type:** Collateral Debt Position
+
+**Position Types:**
+- `COLLATERAL` — Deposited collateral (XLM)
+- `BORROW` — Minted debt (xUSD)
+
+**Key Data:**
+- Vault collateral amount
+- Debt minted
+- Collateral ratio
 
 ### Native Stellar Wallet
 
-| Detail | Value |
-|--------|-------|
-| Type | Wallet / trustlines |
-| Blockchain | Stellar (G-address + C-address) |
-| Adapter | `stellar-wallet` |
-| Position Types | `WALLET` |
-| Key Data | XLM native balance, all trustlines, C-address (Soroban) token detection |
-| Address Types | G-addresses (classic Stellar) and C-addresses (Soroban contracts) |
+**Type:** Wallet balances
+
+**Position Types:**
+- `WALLET` — All token balances
+
+**Key Data:**
+- XLM native balance
+- All trustline balances
+- Soroban token detection (C-addresses)
 
 ### Untangled Vaults
 
-| Detail | Value |
-|--------|-------|
-| Type | ERC-4626 tokenized vault |
-| Blockchain | Stellar Soroban |
-| Adapter | `untangled-vault` |
-| Position Types | `SUPPLY` |
-| Key Data | Vault share balance, NAV per share, underlying asset |
-| Standard | ERC-4626 on Soroban |
-| Pricing Feed | `untangled-vault` (priority 5) |
-| Contract Methods | `balance()`, `navPerShare()`, `totalAssets()`, `totalSupply()` |
+**Type:** ERC-4626 tokenized vault
 
-## Supported Tokens
+**Position Types:**
+- `SUPPLY` — Vault share holdings
 
-Tokens are configured in `tokens.yaml`. The system handles:
+**Key Data:**
+- Vault share balance
+- NAV per share
+- Underlying asset value
 
-### Stellar Classic Assets
-- Assets with `SYMBOL:ISSUER` format
-- Resolved via StellarExpert API
-- Examples: USDC issued by various anchors
+---
 
-### Soroban Token Contracts (SAC)
-- C-addresses (Soroban contract addresses)
-- Token metadata resolved via `name()`, `symbol()`, `decimals()` calls
-- Examples: BLND, AQUA
+## Price Feeds
 
-### Wrapped / Yield-Bearing Assets
-- Configured in `tokens.yaml` under `wrappedAssets`
-- Exchange rate: on-chain `contract` call or `fixed` config
-- Examples: yXLM (Yield XLM), sUSD
+OctoPos uses a priority-based price feed system with automatic fallback:
 
-### Cross-Chain Assets (via CoinGecko)
-- Mapped via `coingeckoMappings` in `tokens.yaml`
-- Priced via DeFiLlama → CoinGecko fallback
-- Examples: SolvBTC → solv-btc, PYUSD → paypal-usd, EURC → euro-coin
+| Priority | Feed | Best For |
+|----------|------|----------|
+| 0 | Aquarius AMM | Stellar-native tokens with active pools |
+| 1 | Wrapped Asset | Wrapped/yield-bearing tokens |
+| 2 | Blend Oracle | Assets in Blend pools |
+| 3 | StellarExpert | Stellar Classic assets |
+| 4 | DeFiLlama | Cross-chain tokens |
+| 5 | Untangled Vault NAV | Vault share tokens |
 
-## Configuration
+---
 
-All external sources are configured via `tokens.yaml`:
+## Data Sources
 
-```yaml
-tokens:
-  BLND:
-    contract: CD25MNVTZDL4Y3XBCPCJXGXATV5WUHHOWMYFF4YBEGU5FCPGMYTVG5JY
-    name: Blend Token
-
-wrappedAssets:
-  "yXLM:GARDNV3...":
-    symbol: yXLM
-    underlyingSymbol: XLM
-    underlyingAssetId: XLM
-    exchangeRateSource: fixed
-    fixedRate: 1.0
-
-pools:
-  blend:
-    CAJJZ...: { name: Blend Fixed Pool }
-  aquarius:
-    "native:USDC": CDVQV...
-
-protocols:
-  phoenix:
-    address: CAPH...
-  soroswap:
-    address: CASR...
-  fxdao:
-    address: CAXF...
-
-# ─── Untangled Vaults (ERC-4626) ──────────────────────────
-vaults:
-  CDDDLSQAR6EVIBFU6KMHA6WLIZJ5PDPXKJCEADD6YJ3HJ3S775XHVEE4:
-    name: USDyc2
-    symbol: USDyc2
-    underlyingSymbol: USDC
-    underlyingContract: CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75
-    decimals: 7
-
-coingeckoMappings:
-  SolvBTC: solv-btc
-  PYUSD: paypal-usd
-  EURC: euro-coin
-  AQUA: aquarius
-  BLND: blend
-
-defaults:
-  timeouts:
-    httpRequest: 15000
-    rpcCall: 15000
-    feedQuery: 10000
-    alertCooldown: 900000
-  cache:
-    symbolMaxSize: 500
-    priceMaxSize: 500
-    rateMaxSize: 200
-    priceTtlMs: 30000
-  thresholds:
-    maxPriceImpact: 0.05
-    crossValidationDivergence: 5
-    healthDebounceCount: 2
-```
-
-## Tracker Schedules
-
-The OctoPos background tracker runs on a scheduled loop:
-
-| Task | Schedule | Description |
-|------|----------|-------------|
-| Position collection | Every 60s | Collect positions, price, save snapshots + state |
-| Health monitoring | After each tick | Slack alerts on adapter status changes |
-| Hourly aggregation | Top of each hour (minute ≥ 1) | Roll up raw snapshots → hourly OHLC |
-| Daily aggregation | Midnight UTC (minute ≥ 5) | Roll up hourly → daily OHLC |
-
-### SourceHealthMonitor
-
-Monitors adapter health and sends Slack alerts on status changes:
-
-- **Health statuses:** `healthy` → `degraded` → `down`
-- **Debounce:** Alert fires only after ≥2 consecutive failures
-- **Cooldown:** 15-minute cooldown between alerts to prevent alert storms
-
-## Protocol Roadmap
-
-OctoPos is actively expanding its coverage across the Stellar DeFi ecosystem.
-
-### In Progress
-- **Soroswap pool-derived pricing** — Enabling precise LP token valuation by reading Soroswap pair reserves directly, complementing the existing DeFiLlama fallback.
-- **Pool coverage expansion** — Continuously adding newly launched pools across supported protocols.
-
-### Planned
-- **Multi-source price aggregation** — Cross-validate prices across Blend Oracle, Aquarius, and DeFiLlama to detect anomalies and improve reliability.
-- **Additional protocol integrations** — Expanding support as new Stellar DeFi protocols launch.
+| Source | Type | Usage |
+|--------|------|-------|
+| **Soroban RPC** | Blockchain | Contract state, token metadata |
+| **Horizon API** | Blockchain | Native balances, trustlines |
+| **Blend SDK** | Protocol SDK | Lending pool positions |
+| **Aquarius API** | Protocol | Pool info, rewards |
+| **stellar.expert** | Price API | Classic asset prices |
+| **DeFiLlama** | Aggregator | Cross-chain prices |
 
 ---
 
 ## Event Types
 
-OctoPos tracks the following position lifecycle events:
+OctoPos tracks position lifecycle events:
 
 | Event | Description |
 |-------|-------------|
@@ -270,6 +166,5 @@ OctoPos tracks the following position lifecycle events:
 | `repay` | Debt repaid |
 | `liquidation` | Position liquidated |
 | `claim` | Rewards or interest claimed |
-| `swap` | Asset swapped (DEX) |
 | `stake` | Token staked |
 | `unstake` | Token unstaked |

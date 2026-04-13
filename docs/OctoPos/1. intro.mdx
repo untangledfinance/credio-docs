@@ -2,33 +2,98 @@
 
 ## What is OctoPos?
 
-**OctoPos (OctoVault Position Tracker)** is a modular, real-time DeFi position tracking engine for the Stellar blockchain. It aggregates user positions across multiple Stellar DeFi protocols, prices them via a unified 5-feed priority chain, resolves contract addresses to known types, persists historical data in MongoDB, and exposes a REST API with authentication and rate limiting.
+**OctoPos** is a comprehensive DeFi intelligence platform for the Stellar blockchain. It provides real-time position tracking, risk monitoring, and transaction execution services for users interacting with Stellar DeFi protocols.
 
-OctoPos is part of the Untangled Finance ecosystem — the data backbone that powers OctoVault's real-time NAV calculations and portfolio analytics.
+OctoPos is part of the Untangled Finance ecosystem — the data backbone that powers OctoVault's real-time NAV calculations, portfolio analytics, and risk management.
+
+## Core Services
+
+### 1. Position Tracker
+Tracks user positions across multiple Stellar DeFi protocols with real-time pricing.
+
+### 2. Risk Monitoring Service (RMS)
+Continuously monitors lending, AMM, and DeFi positions across Blend, Aquarius, SoroSwap, Phoenix, FxDAO, and other protocols for risk conditions and triggers alerts when thresholds are crossed.
+
+### 3. Transaction Builder (TxB)
+Builds optimized Stellar Soroban transactions for position exits (repay, liquidate, unwind).
+
+### 4. Notification Service (NS)
+Delivers risk alerts to users via Telegram, Discord, and Email.
 
 ## Core Capabilities
 
 - **Multi-protocol aggregation** — Tracks positions across Blend, Aquarius, SoroSwap, Phoenix, FxDAO, and native Stellar wallets in a single query
-- **5-feed price priority chain** — Aquarius AMM → Wrapped Assets → Blend Oracle → StellarExpert → DeFiLlama, with automatic fallback and cross-validation
+- **6-feed price priority chain** — Aquarius AMM → Wrapped Assets → Blend Oracle → StellarExpert → DeFiLlama → Untangled Vault NAV, with automatic fallback and cross-validation
 - **Real-time tracking** — 60-second position collection loop with raw snapshots, hourly OHLC, and daily OHLC rollups
-- **YAML-driven configuration** — Token addresses, pool configs, and thresholds managed externally, not in code
-- **Plugin extensibility** — New protocols added via drop-in TypeScript plugins; no core changes required
-- **REST API** — Authenticated endpoints for positions, history, yield, risk, and protocol stats
+- **Risk monitoring** — Continuous evaluation of positions across multiple protocols with configurable thresholds
+- **Transaction building** — Build repay, liquidation, and unwind transactions with slippage control
+- **Multi-channel alerts** — Telegram, Discord, and Email notifications for risk events
 
-## Architecture Layers
+## Architecture Overview
 
-| Layer | Name | Responsibility |
-|-------|------|---------------|
-| 1 | Connectors | Raw SDK wrappers for external services (Soroban RPC, Horizon, DeFiLlama, etc.) |
-| 2 | Adapters | Protocol-specific position extraction (Blend, Aquarius, SoroSwap, Phoenix, FxDAO, StellarWallet) |
-| 3 | Feeds | Price data from multiple sources (5-feed priority chain) |
-| 4 | Data | MongoDB models, aggregation, health monitoring |
-| 5 | Services | Orchestration, pricing, monitoring |
-| 6 | API | REST endpoints, auth, rate limiting |
+OctoPos consists of four interconnected services:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        OctoPos Platform                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│  │  Position    │───▶│     RMS      │───▶│      NS      │    │
+│  │   Tracker    │    │   (Risk)     │    │ (Notifications)│    │
+│  └──────────────┘    └──────────────┘    └──────────────┘    │
+│         │                   │                                   │
+│         ▼                   ▼                                   │
+│  ┌──────────────┐    ┌──────────────┐                         │
+│  │   Pricing    │    │     TxB      │                         │
+│  │    Engine    │    │(Transactions)│                         │
+│  └──────────────┘    └──────────────┘                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Collect   │────▶│    Price    │────▶│   Build     │
+│  Positions  │     │   & Value   │     │  Snapshot   │
+│   (60s)     │     │             │     │             │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                    ┌─────────────┐             │
+                    │   Store    │◀────────────┤
+                    │ (MongoDB)  │             │
+                    └─────────────┘             │
+                                               ▼
+                    ┌─────────────┐     ┌─────────────┐
+                    │    Risk    │────▶│  Notify     │
+                    │  Evaluate  │     │  (NS)       │
+                    └─────────────┘     └─────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   Build    │
+                    │   Tx (TxB) │
+                    └─────────────┘
+```
+
+## API Subscriptions
+
+Access OctoPos API via **X402 protocol** — pay with Stellar USDC for 30-day subscriptions.
+
+| Tier | Rate Limit | Duration | Price |
+|------|------------|----------|-------|
+| Standard | 60 req/min | 30 days | $0.2026 |
+| Partner | Custom | Custom | Negotiated |
+
+Supported wallets: **Freighter**, Albedo. See [Subscriptions](./subscriptions) for details.
 
 ## REST API
 
-OctoPos exposes a REST API with API key authentication and tiered rate limiting:
+OctoPos exposes a unified REST API with API key authentication and tiered rate limiting:
+
+### Position Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -36,15 +101,29 @@ OctoPos exposes a REST API with API key authentication and tiered rate limiting:
 | `/summary` | GET | Portfolio summary with total value |
 | `/history` | GET | Historical portfolio snapshots |
 | `/yield` | GET | Yield metrics per protocol |
-| `/risk` | GET | Risk metrics (health factor, exposure) |
 | `/events` | GET | Position lifecycle events |
+
+### Risk & Transaction Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/rms/risk/:addr` | GET | Risk evaluation for a wallet |
+| `/rms/config/:addr` | GET/POST | Risk threshold configuration |
+| `/txb/build` | POST | Build a repay/liquidate transaction |
+| `/txb/proposals` | GET | Get transaction proposals |
+
+### System Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/protocols` | GET | List supported protocols |
 | `/protocols/:id/stats` | GET | Protocol-level statistics |
 | `/health` | GET | System health + data freshness |
+| `/rms/notifications/telegram` | GET/POST/DELETE | Telegram notification config |
 
 API key tiers: **Free** (rate-limited) · **Standard** · **Partner** (custom limits).
 
-See [Architecture](./architecture) for full design principles.
+See [Architecture](./architecture) for system design and [RMS](./rms) for risk monitoring details.
 
 ## Supported Protocols
 

@@ -2,126 +2,197 @@
 
 ## System Overview
 
+OctoPos is a modular platform with four interconnected services that work together to provide comprehensive DeFi intelligence on Stellar.
+
 ```mermaid
 graph TD
-    subgraph L6["Layer 6 — API"]
-        API[REST API<br/>/positions · /summary · /history<br/>/yield · /risk · /events<br/>/protocols · /health]
+    subgraph POS["Position Tracker"]
+        POS_API[REST API<br/>/positions · /summary · /history]
+        POS_COL[Collector<br/>60s position collection]
+        POS_PRI[Pricing Engine<br/>6-feed priority chain]
+        POS_DB[(MongoDB<br/>Position Data)]
     end
 
-    subgraph L5["Layer 5 — Services"]
-        AGG[AggregatorService<br/>collectPositions · pricePositions<br/>buildSnapshot]
-        PRC[UnifiedPricingService<br/>5-feed priority chain + cache]
-        MON[SourceHealthMonitor<br/>Slack alerts on status change]
+    subgraph RMS["Risk Monitoring Service"]
+        RMS_JOB[RMS Job<br/>60s evaluation loop]
+        RMS_EVAL[Risk Evaluator<br/>Blend positions]
+        RMS_THRESH[Threshold Config<br/>User-defined limits]
     end
 
-    subgraph L23["Layers 2–3 — Adapters, Feeds & Resolvers"]
-        AD[Protocol Adapters<br/>Blend · Aquarius · SoroSwap<br/>Phoenix · FxDAO · StellarWallet]
-        FD[Price Feeds<br/>Aquarius · Wrapped Asset<br/>Blend Oracle · StellarExpert · DeFiLlama]
-        RES[Resolvers<br/>TokenRegistry · ContractResolver]
+    subgraph TXB["Transaction Builder"]
+        TXB_API[TxB API<br/>/txb/build · /txb/proposals]
+        TXB_BUILD[Transaction Builder<br/>Soroban SDK]
+        TXB_SIM[Simulator<br/>RPC simulation]
     end
 
-    subgraph L1["Layer 1 — Connectors"]
-        CON[Soroban · Horizon · DeFiLlama<br/>Aquarius · SoroSwap · Phoenix · FxDAO<br/>StellarExpert]
-    end
-
-    subgraph L4["Layer 4 — Data"]
-        DB[(MongoDB<br/>10 collections)]
-        RD[(Redis<br/>Distributed locking)]
+    subgraph NS["Notification Service"]
+        NS_DISP[Dispatcher<br/>Multi-channel routing]
+        NS_TG[Telegram Bot]
+        NS_DC[Discord Webhook]
+        NS_EM[Email SMTP]
+        NS_DLQ[Dead Letter Queue<br/>Retry failed alerts]
     end
 
     subgraph EXT["External Services"]
         RPC[Soroban RPC]
         HOR[Horizon API]
-        DL[DeFiLlama API]
-        EXP[stellar.expert]
-        AQP[Aquarius AMM API]
-        CDP[Protocol CDPs]
+        DL[DeFiLlama]
+        EXP[StellarExpert]
+        AQ[Aquarius AMM]
     end
 
-    API --> AGG
-    AGG --> AD & FD
-    AD & FD --> CON
-    AGG --> MON
-    AGG --> PRC
-    PRC --> FD
-    CON --> EXT
-    AGG --> DB & RD
+    POS_API --> POS_COL
+    POS_COL --> POS_PRI
+    POS_PRI --> POS_DB
+    POS_PRI --> RPC & HOR & DL & EXP & AQ
+
+    RMS_JOB --> RMS_EVAL
+    RMS_EVAL --> POS_DB
+    RMS_EVAL --> RMS_THRESH
+    RMS_EVAL --> RPC
+
+    RMS_JOB -.-> NS_DISP
+    RMS_THRESH -.-> NS_DISP
+
+    TXB_API --> TXB_BUILD
+    TXB_BUILD --> TXB_SIM
+    TXB_BUILD --> RPC
+
+    NS_DISP --> NS_TG
+    NS_DISP --> NS_DC
+    NS_DISP --> NS_EM
+    NS_DISP -.-> NS_DLQ
 ```
 
-## Layers
+## Core Services
 
-| Layer | Name | Responsibility |
-|-------|------|---------------|
-| 1 | Connectors | SDK wrappers for Soroban RPC, Horizon, DeFiLlama, protocol APIs |
-| 2 | Adapters | Protocol-specific position extraction (Blend, Aquarius, SoroSwap, Phoenix, FxDAO, StellarWallet, UntangledVaults) |
-| 3 | Feeds | Price data from 6-source priority chain (Aquarius → Wrapped Asset → Blend Oracle → StellarExpert → DeFiLlama → Untangled Vault) |
-| 3b | Resolvers | Token symbol & contract type resolution |
-| 3c | Introspection | On-chain contract state reading (reserves, TVL) |
-| 4 | Data | MongoDB models, OHLC aggregation, health monitoring |
-| 5 | Services | Orchestration (AggregatorService), pricing (UnifiedPricingService), health alerts |
-| 6 | API | REST endpoints, API key auth, rate limiting, Gzip compression |
+### Position Tracker
+
+The Position Tracker continuously monitors user positions across Stellar DeFi protocols.
+
+**Responsibilities:**
+- Collect positions every 60 seconds from all supported protocols
+- Price positions using a 6-feed priority chain
+- Store snapshots and maintain historical data
+- Monitor data source health
+
+**Data Collections:**
+| Collection | Purpose |
+|-----------|---------|
+| `position_snapshots` | Full portfolio snapshots (90-day TTL) |
+| `position_states` | Current position state |
+| `event_logs` | Lifecycle events (1-year TTL) |
+| `price_cache` | Cached token prices (5-min TTL) |
+| `source_health` | Data source health metrics |
+
+### Risk Monitoring Service (RMS)
+
+RMS continuously evaluates positions across Blend, Aquarius, SoroSwap, Phoenix, FxDAO, and other protocols for risk conditions and triggers notifications.
+
+**Risk Levels:**
+| Level | Health Factor | Description |
+|-------|---------------|-------------|
+| `healthy` | ≥ 1.50 | Position is healthy |
+| `warn` | 1.25 – 1.50 | Attention recommended |
+| `alert` | 1.10 – 1.25 | Action recommended |
+| `emergency` | < 1.10 | Immediate action required |
+
+**Risk Triggers:**
+| Trigger | Description |
+|---------|-------------|
+| `low_health_factor` | Health factor below threshold |
+| `oracle_stale` | Price oracle data is outdated |
+| `oracle_price_manipulation` | Potential price manipulation detected |
+| `pool_utilization_high` | Pool utilization exceeds safe limits |
+| `pool_freeze` | Pool operations have been paused |
+| `borrow_apr_spike` | Borrow rate increased significantly |
+| `collateral_depeg` | Collateral asset losing peg stability |
+| `collateral_liquidity_low` | Insufficient liquidity for liquidation |
+
+### Transaction Builder (TxB)
+
+TxB builds optimized Soroban transactions for position management.
+
+**Supported Operations:**
+| Operation | Description |
+|-----------|-------------|
+| `REPAY` | Repay borrowed assets to improve health factor |
+| `LIQUIDATE` | Liquidate undercollateralized position |
+| `UNWIND` | Close entire position (withdraw + repay) |
+
+**Features:**
+- Real Soroban SDK integration
+- Transaction simulation before submission
+- Slippage protection (configurable BPS)
+- TTL bumping for safety margin
+- Resource footprint optimization
+
+### Notification Service (NS)
+
+NS delivers risk alerts through multiple channels with retry logic.
+
+**Supported Channels:**
+| Channel | Setup |
+|---------|-------|
+| Telegram | Bot token + chat ID |
+| Discord | Webhook URL |
+| Email | SMTP configuration |
+
+**Features:**
+- Alert cooldowns to prevent spam
+- Dead letter queue for failed deliveries
+- Priority routing (normal/urgent)
+- Per-user notification preferences
 
 ## Design Principles
 
-1. **Mainnet-only** — No testnet support. Stellar mainnet prices and contracts only.
-2. **YAML-driven config** — Token addresses, pool configs, and thresholds live in `tokens.yaml`, not in code.
-3. **Priority feed chain** — 6 price feeds tried in order; first non-null result wins with cross-validation.
-4. **Plugin-first extensibility** — New protocols added via drop-in TypeScript plugins; no core changes.
-5. **Lazy registration** — Built-in adapters/feeds registered on first use to keep startup fast.
-6. **Tiered aggregation** — Raw snapshots (60s) → hourly OHLC → daily OHLC for space-efficient history.
-7. **Resilient** — Each adapter/feed is independent; failures are isolated and health-monitored with Slack alerts.
-8. **G-address resolution** — C-addresses (Soroban contracts) are probed to detect type and resolve underlying G-addresses.
+1. **Mainnet-only** — All operations target Stellar mainnet
+2. **Resilient** — Services are independent; failures are isolated
+3. **Configurable** — Thresholds and settings are user-defined
+4. **Extensible** — New protocols and feeds can be added
+5. **Observable** — Health monitoring and logging throughout
 
 ## Data Flow
 
-```mermaid
-flowchart LR
-    A[collectPositions] --> B[pricePositions]
-    B --> C[buildSnapshot]
-    C --> D[Persist to MongoDB]
-    D --> E[Upsert PositionState<br/>Save PositionSnapshot<br/>Update SourceHealth]
-```
-
-## Price Feed Chain
+### Position Collection Loop
 
 ```mermaid
 flowchart TD
-    P[Token Request] --> P0[Aquarius AMM<br/>Priority 0]
-    P0 --> |null| P1[Wrapped Asset<br/>Priority 1]
-    P1 --> |null| P2[Blend Oracle<br/>Priority 2]
-    P2 --> |null| P3[StellarExpert<br/>Priority 3]
-    P3 --> |null| P4[DeFiLlama<br/>Priority 4]
-    P4 --> |null| P5[Untangled Vault<br/>Priority 5]
-    P0 --> |result| R[Return Price]
-    P1 --> |result| R
-    P2 --> |result| R
-    P3 --> |result| R
-    P4 --> |result| R
-    P5 --> |result| R
+    T1[Every 60s] --> T2[Collect positions<br/>from all protocols]
+    T2 --> T3[Price positions<br/>6-feed priority chain]
+    T3 --> T4[Build snapshot]
+    T4 --> T5[Store in MongoDB]
+    T5 --> T6[Update position state]
+    T6 --> T7[Check source health]
+    T7 --> T8[Hourly: Roll up to OHLC]
+    T8 --> T9[Daily: Roll up to daily]
 ```
 
-## Tracker Loop
+### Risk Evaluation Loop
 
 ```mermaid
 flowchart TD
-    T1[Every 60s<br/>Collect positions] --> T2[Price positions<br/>Build snapshot]
-    T2 --> T3[Save to MongoDB<br/>Update state]
-    T3 --> T4[Health check<br/>Slack alert if changed]
-    T4 --> T5[Hourly: Roll up<br/>raw → OHLC]
-    T5 --> T6[Daily midnight UTC<br/>OHLC → daily]
+    R1[Every 60s] --> R2[Fetch positions<br/>(all protocols)]
+    R2 --> R3[Evaluate each position]
+    R3 --> R4{Risk level<br/>changed?}
+    R4 -->|Yes| R5[Trigger notification]
+    R4 -->|No| R6[Log evaluation]
+    R5 --> R7[Route to NS]
+    R7 --> R8[Dispatch via<br/>Telegram/Discord/Email]
+    R6 --> R9[End]
 ```
 
-## MongoDB Collections
+### Transaction Building Flow
 
-| Collection | Purpose | TTL |
-|-----------|---------|-----|
-| `octopos_position_snapshots` | Full portfolio snapshots (historical) | 90 days |
-| `octopos_position_states` | Current position state | None |
-| `octopos_event_logs` | Lifecycle events (deposit, liquidation, etc.) | 1 year |
-| `octopos_price_cache` | Cached token prices | 5 minutes |
-| `octopos_source_health` | Per-adapter health metrics | 30 days |
-| `octopos_hourly_aggregates` | Hourly OHLC rollups | 90 days |
-| `octopos_daily_aggregates` | Daily OHLC rollups | Permanent |
-| `octopos_contract_types` | Resolved Soroban contract types | None |
-| `octopos_tracked_addresses` | Addresses configured for tracking | None |
-| `octopos_api_keys` | API key authentication records | None |
+```mermaid
+flowchart TD
+    B1[Request: action + params] --> B2[Fetch position data]
+    B2 --> B3[Build Soroban invocation]
+    B3 --> B4[Simulate via RPC]
+    B4 --> B5{Simulation<br/>successful?}
+    B5 -->|Yes| B6[Assemble transaction]
+    B5 -->|No| B7[Return error]
+    B6 --> B8[Add resource footprints]
+    B8 --> B9[Bump TTLs]
+    B9 --> B10[Return signed XDR]
+```

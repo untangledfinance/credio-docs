@@ -1,0 +1,241 @@
+# Risk Monitoring Service (RMS)
+
+## Overview
+
+The Risk Monitoring Service continuously evaluates lending, AMM, and DeFi positions across multiple protocols for risk conditions. RMS supports:
+
+- **Blend Capital** — Lending pool positions (SUPPLY, BORROW)
+- **Aquarius AMM** — Liquidity pool positions (LP)
+- **SoroSwap** — Factory-created pair positions (LP)
+- **Phoenix DeFi Hub** — Staking and LP positions (STAKE, LP)
+- **FxDAO** — Collateral debt positions (COLLATERAL, BORROW)
+- **Untangled Vaults** — ERC-4626 vault positions (SUPPLY)
+
+When a position crosses configured thresholds, RMS triggers notifications and can provide transaction proposals for risk mitigation.
+
+## Risk Levels
+
+| Level | Health Factor | Severity | Action |
+|-------|---------------|----------|--------|
+| `healthy` | ≥ 1.50 | LOW | HOLD — No action needed |
+| `warn` | 1.25 – 1.50 | MEDIUM | WATCH — Monitor closely |
+| `alert` | 1.10 – 1.25 | HIGH | REPAY — Consider repaying debt |
+| `emergency` | < 1.10 | CRITICAL | LIQUIDATE — Position at risk |
+
+## Risk Triggers
+
+### Health Factor Triggers
+- **`low_health_factor`** — Health factor has dropped below the configured threshold
+
+### Oracle Triggers
+- **`oracle_stale`** — Price oracle data is outdated (configurable age threshold)
+- **`oracle_price_manipulation`** — Detected potential price manipulation
+- **`oracle_feed_divergence`** — Price feeds are providing inconsistent data
+- **`oracle_address_changed`** — Oracle address has changed unexpectedly
+
+### Pool Triggers
+- **`pool_utilization_high`** — Pool utilization exceeds safe limits (>80%)
+- **`pool_freeze`** — Pool operations have been paused by admin
+
+### Collateral Triggers
+- **`collateral_depeg`** — Collateral asset losing peg stability
+- **`collateral_liquidity_low`** — Insufficient liquidity for liquidation
+- **`collateral_oracle_sanity_fail`** — Collateral price failed sanity checks
+
+### Advanced Triggers
+- **`borrow_apr_spike`** — Borrow rate increased significantly (>50% change)
+- **`twap_deviation_exceeded`** — TWAP has deviated beyond safe limits
+- **`vwap_manipulation`** — VWAP suggests potential manipulation
+- **`single_trade_impact`** — Single large trade had outsized price impact
+
+---
+
+## Configuration
+
+### Default Thresholds
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Health Factor Warn | 1.50 | Alert when HF drops below this |
+| Health Factor Alert | 1.25 | Action recommended below this |
+| Health Factor Emergency | 1.10 | Immediate action below this |
+| Oracle Max Age | 300s | Max age before oracle marked stale |
+| Utilization Warn | 80% | High utilization warning threshold |
+| Utilization Alert | 90% | High utilization critical threshold |
+
+### User Configuration
+
+Users can customize their risk thresholds per wallet:
+
+```json
+{
+  "walletAddress": "GABC...XYZ",
+  "thresholds": {
+    "hfWarnOverride": 1.60,
+    "hfAlertOverride": 1.30,
+    "hfEmergencyOverride": 1.15,
+    "oracleWarnAge": 180,
+    "utilWarnBps": 7500,
+    "utilAlertBps": 8500
+  }
+}
+```
+
+---
+
+## API Endpoints
+
+### Get Risk Configuration
+
+```
+GET /api/v1/rms/config/:walletAddress
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "config": {
+    "walletAddress": "GABC...XYZ",
+    "thresholds": {
+      "hfWarnOverride": 1.50,
+      "hfAlertOverride": 1.25,
+      "hfEmergencyOverride": 1.10
+    },
+    "createdAt": "2026-01-15T10:00:00.000Z",
+    "updatedAt": "2026-04-01T08:30:00.000Z"
+  }
+}
+```
+
+### Update Risk Configuration
+
+```
+POST /api/v1/rms/config/:walletAddress
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "thresholds": {
+    "hfWarnOverride": 1.60,
+    "hfAlertOverride": 1.35,
+    "oracleWarnAge": 200
+  }
+}
+```
+
+### Get Risk Evaluation
+
+```
+GET /api/v1/rms/risk/:walletAddress
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "portfolioRisk": {
+    "portfolioAddress": "GABC...XYZ",
+    "overallRiskLevel": "warn",
+    "positions": [
+      {
+        "positionId": "pos_001",
+        "protocolId": "blend",
+        "positionType": "supply",
+        "healthFactor": 1.35,
+        "collateralValueUsd": 10000.00,
+        "liabilityValueUsd": 7407.41,
+        "riskLevel": "alert",
+        "riskTriggers": ["low_health_factor"],
+        "liquidationBuffer": 2592.59,
+        "estimatedLossIfLiquidated": 481.48,
+        "evaluatedAt": "2026-04-13T12:00:00.000Z"
+      }
+    ],
+    "evaluatedAt": "2026-04-13T12:00:00.000Z"
+  }
+}
+```
+
+### List Active Alerts
+
+```
+GET /api/v1/rms/alerts
+```
+
+**Query Parameters:**
+- `wallet` — Filter by wallet address
+- `level` — Filter by risk level (`healthy`, `warn`, `alert`, `emergency`)
+- `limit` — Max results (default: 50)
+
+### Trigger Alert Evaluation (Admin)
+
+```
+POST /api/v1/rms/trigger
+x-admin-key: <RMS_ADMIN_API_KEY>
+Content-Type: application/json
+```
+
+```json
+{
+  "walletAddress": "GABC...XYZ"
+}
+```
+
+---
+
+## Health Factor Calculation
+
+Health Factor is calculated as:
+
+```
+Health Factor = (Collateral Value × Collateral Factor) / Liability Value
+```
+
+### Example
+
+| Asset | Value (USD) | Factor |
+|-------|-------------|--------|
+| USDC Collateral | $10,000 | 0.90 |
+| USDC Debt | $5,000 | — |
+
+```
+Health Factor = (10000 × 0.90) / 5000 = 1.80
+```
+
+### Liquidation Threshold
+
+A position enters liquidation when:
+
+```
+Health Factor < 1.10
+```
+
+At this point, liquidators can repay the debt and claim collateral at a bonus.
+
+---
+
+## Real-Time Monitoring
+
+RMS runs a continuous evaluation loop across all supported protocols:
+
+| Interval | Task |
+|----------|------|
+| 60 seconds | Fetch positions from all protocols for tracked wallets |
+| 60 seconds | Evaluate each position against thresholds |
+| On change | Trigger notifications if risk level changed |
+| 15 minutes | Cooldown between repeated alerts |
+
+---
+
+## Integration with TxB
+
+When a risk alert is triggered, RMS can coordinate with the Transaction Builder to propose exit strategies:
+
+1. **REPAY** — Build a repay transaction to improve health factor
+2. **LIQUIDATE** — For liquidators: build a liquidation transaction
+3. **UNWIND** — Build a complete position close transaction
+
+See [Transaction Builder](./txb) for details on building transactions.
