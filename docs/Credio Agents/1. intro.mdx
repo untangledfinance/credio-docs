@@ -1,0 +1,115 @@
+# Introduction to Credio Agents
+
+## What are Credio Agents?
+
+**Credio Agents** are autonomous on-chain agents that watch your Stellar DeFi positions around the clock and act on your behalf when risk becomes critical. They turn [OctoPos](../OctoPos/intro) risk intelligence into real, timely execution — so your positions stay safe even while you sleep.
+
+The first agent in the family is the **Credio Agent for OctoPos** — it monitors Blend Capital lending positions and automatically closes them the moment risk reaches emergency level.
+
+## Why Agents?
+
+DeFi never sleeps. Prices move, oracles drift, pools get utilized, and a healthy position can become a liquidation candidate in minutes. Credio Agents close the gap between *seeing* risk and *doing* something about it:
+
+- **Always on** — continuous monitoring, no human in the loop
+- **Fast** — pre-signed exit transactions make the critical path a single network round-trip
+- **Non-custodial** — the agent acts from its own wallet; your keys stay yours
+- **Auditable** — every action is logged with full context for later review
+- **Self-funded** — the agent manages its own OctoPos API subscription using on-chain USDC
+
+## Core Functionalities
+
+### Risk Monitoring
+Polls the [OctoPos RMS API](../OctoPos/rms) in real time for each wallet it manages. Risk levels map directly to RMS: `healthy`, `warn`, `alert`, `emergency`.
+
+### Auto-Close on Emergency
+When RMS returns `emergency`, the agent broadcasts a pre-signed unwind transaction — repaying debt, withdrawing collateral, and swapping back to a base asset with slippage control.
+
+### Pre-Signed Transaction Cache
+To minimize reaction time, the agent keeps a ready-to-submit close transaction on hand, refreshed every few minutes or whenever positions change.
+
+### X402 Subscription Self-Management
+The agent pays for its own OctoPos API access through the [X402 payment protocol](../OctoPos/subscriptions), using Stellar USDC. Keys are renewed automatically before expiry.
+
+### Deduplication
+A two-layer guard prevents the same position from being closed twice — a short-lived cooldown cache plus a permanent audit record.
+
+### Notifications (roadmap)
+A notification pipeline is scaffolded for upcoming Telegram, Discord, and Slack integrations.
+
+## Technology Behind the Agent
+
+| Layer | Tech |
+|-------|------|
+| Runtime | [Bun](https://bun.sh) |
+| Framework | [`untangled-web`](https://github.com/untangledfinance/untangled-web) (DI, jobs, caching) |
+| Blockchain | Stellar / Soroban, Stellar Router SDK, Blend Capital |
+| Risk data | [OctoPos RMS](../OctoPos/rms) |
+| Payments | X402 protocol, Stellar USDC |
+| Storage | MongoDB (state & audit), Redis (cooldown cache) |
+
+## Architecture at a Glance
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Credio Agent                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │ Risk Monitor │───▶│  Decision    │───▶│   Stellar    │       │
+│  │   (polling)  │    │   Engine     │    │   (Soroban)  │       │
+│  └──────┬───────┘    └──────┬───────┘    └──────────────┘       │
+│         │                   │                                   │
+│         ▼                   ▼                                   │
+│  ┌──────────────┐    ┌──────────────┐                           │
+│  │   OctoPos    │    │  Pre-Signed  │                           │
+│  │     RMS      │    │     Cache    │                           │
+│  └──────────────┘    └──────────────┘                           │
+│         │                   │                                   │
+│         ▼                   ▼                                   │
+│  ┌──────────────┐    ┌──────────────┐                           │
+│  │   MongoDB    │    │    Redis     │                           │
+│  │ (state/audit)│    │  (cooldown)  │                           │
+│  └──────────────┘    └──────────────┘                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## What It Does, End to End
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Poll RMS   │────▶│  Evaluate   │────▶│  Keep Exit  │
+│             │     │  Risk Level │     │ Tx Presigned│
+└─────────────┘     └──────┬──────┘     └─────────────┘
+                           │
+                  emergency│
+                           ▼
+                    ┌─────────────┐     ┌─────────────┐
+                    │  Dedup      │────▶│  Broadcast  │
+                    │  Check      │     │   & Close   │
+                    └─────────────┘     └──────┬──────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │    Audit    │
+                                        │   & Notify  │
+                                        └─────────────┘
+```
+
+## Supported Positions
+
+| Protocol | Position Type | Action |
+|----------|---------------|--------|
+| Blend Capital | Lending (supply + borrow) | Unwind: repay debt → withdraw collateral → swap to base |
+
+Additional protocols — Aquarius, SoroSwap, Phoenix, FxDAO — are on the roadmap, tracking [OctoPos adapter coverage](../OctoPos/supported-sources).
+
+## Relationship to OctoPos
+
+| OctoPos Component | Role for the Agent |
+|-------------------|--------------------|
+| [RMS](../OctoPos/rms) | Risk signal source |
+| [TxB](../OctoPos/txb) | Transaction proposal reference |
+| [X402 Subscriptions](../OctoPos/subscriptions) | Payment rail for API access |
+
+See [Credio Agent](./credio-agent) for how the agent behaves, [Architecture](./architecture) for the pieces under the hood, and [Operations](./operations) for deployment.

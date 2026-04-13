@@ -1,0 +1,92 @@
+# Credio Agent
+
+## Overview
+
+The **Credio Agent** is an autonomous guardian for your Stellar DeFi positions. It watches risk in real time through [OctoPos RMS](../OctoPos/rms) and closes Blend Capital lending positions the moment risk hits the `emergency` level.
+
+It runs continuously, pays for its own data access, and records every decision it makes.
+
+## What It Does
+
+### 1. Watches Risk, Continuously
+The agent polls OctoPos RMS on a short interval, evaluating each managed wallet against the same risk taxonomy you see in RMS — `healthy`, `warn`, `alert`, `emergency`.
+
+### 2. Keeps an Exit Ready
+Building a Stellar transaction takes time. To react in seconds, the agent continuously maintains a **pre-signed close transaction** for the current positions. The cache is refreshed every few minutes, or sooner if positions change.
+
+### 3. Closes When It Must
+On an `emergency` signal, the agent submits the pre-signed transaction immediately. If the presigned copy is stale or rejected, it falls back to building, signing, and submitting a fresh one.
+
+An unwind for a Blend position includes:
+
+1. Source flash liquidity if debt must be repaid before collateral can be released
+2. Repay outstanding debt
+3. Withdraw collateral
+4. Swap recovered assets back to a base asset within your slippage tolerance
+5. Return flash liquidity
+
+### 4. Avoids Double-Closing
+Two layers protect against duplicate actions:
+
+- **Cooldown cache** — a short TTL in Redis blocks back-to-back firings
+- **Permanent audit trail** — MongoDB records every attempt, so replays cannot re-execute
+
+### 5. Pays Its Own Way
+A daily subscription job keeps the agent's OctoPos API key valid:
+
+1. Checks the currently stored key
+2. If missing or near expiry, pays via [X402](../OctoPos/subscriptions) in Stellar USDC
+3. Stores the new key and resumes polling
+
+### 6. Audits Everything
+Every attempted close — success or failure — is saved with wallet, positions, risk snapshot, transaction hash, and outcome. The `/status` endpoint surfaces recent actions for quick inspection.
+
+## Risk Levels and Behavior
+
+The agent mirrors RMS semantics directly:
+
+| RMS Level | Agent Behavior |
+|-----------|----------------|
+| `healthy` | Monitor only |
+| `warn` | Monitor only |
+| `alert` | Monitor only (soft actions on roadmap) |
+| `emergency` | Close the position immediately |
+
+See [RMS Risk Levels](../OctoPos/rms#risk-levels) for the underlying health-factor bands.
+
+## Reaction Path
+
+```
+emergency signal
+      │
+      ▼
+┌─────────────────┐
+│ Cooldown check  │──── active ────▶ skip
+└────────┬────────┘
+         │ clear
+         ▼
+┌─────────────────┐
+│ Broadcast       │──── ok ─────▶ record success
+│ presigned tx    │
+└────────┬────────┘
+         │ fail / stale
+         ▼
+┌─────────────────┐
+│ Fresh build +   │──── ok ─────▶ record success
+│ sign + submit   │
+└─────────────────┘
+```
+
+## Failure Handling
+
+| Situation | What the Agent Does |
+|-----------|---------------------|
+| Soroban RPC outage | Retries with backoff; falls back to an alternate endpoint if configured |
+| OctoPos API key expired | Triggers X402 renewal; pauses polling until key is valid |
+| Presigned transaction rejected | Rebuilds fresh, re-signs, resubmits |
+| Pool frozen by admin | Logs and records the failure; no unsafe retries |
+| Wallet low on XLM for fees | Surfaces a warning in logs and `/status` |
+
+## Notifications (Roadmap)
+
+A notification pipeline is in place to broadcast lifecycle events — close started, confirmed, failed — to Telegram, Discord, and Slack in upcoming releases.
