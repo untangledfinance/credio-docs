@@ -25,19 +25,16 @@ X402 is an open payment protocol that allows servers to charge for API access by
 
 ## How It Works
 
-```
-┌─────────────┐     POST /subscribe      ┌──────────────────┐
-│   Client    │ ──────────────────────▶ │  OctoPos API     │
-│  (Wallet)  │                          │                  │
-└─────────────┘                          │  1. Verify X402  │
-       ▲                                 │     payment sig  │
-       │                                 │                  │
-       │    402 Payment Required         │  2. Settle USDC │
-       │    + payment requirements       │     on-chain     │
-       └─────────────────────────────────│                  │
-                                         │  3. Issue API    │
-                                         │     key (30d)    │
-                                         └──────────────────┘
+```mermaid
+sequenceDiagram
+    participant C as Client (Wallet)
+    participant A as OctoPos API
+
+    C->>A: POST /subscribe
+    A-->>C: 402 Payment Required
+    Note over C,A: Verify X402 payment signature
+    Note over A: Settle USDC on-chain
+    Note over A: Issue API key (30d)
 ```
 
 ## Subscription Tiers
