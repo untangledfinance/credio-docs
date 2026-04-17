@@ -8,8 +8,8 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: "Credio Documentation",
-  tagline: "Streaming RWA credit intelligence",
+  title: "OctoPos & Credio Agents Documentation",
+  tagline: "DeFi intelligence platform for Stellar — position tracking, risk monitoring, and autonomous agents",
   favicon: "img/small_logo.png",
 
   // Set the production url of your site here
@@ -78,6 +78,11 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
+      },
       // Replace with your project's social card
       image: "img/docusaurus-social-card.jpg",
       navbar: {
