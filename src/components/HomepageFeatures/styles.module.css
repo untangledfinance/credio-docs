@@ -48,6 +48,10 @@
 }
 
 .card:hover {
+  text-decoration: none;
+}
+
+.card:hover {
   background: #0c1a30;
 }
 
@@ -114,6 +118,7 @@
   letter-spacing: -0.01em;
   margin-bottom: 0;
   transition: margin-bottom 0.35s ease;
+  text-decoration: none;
 }
 
 .cardDesc {
@@ -127,6 +132,7 @@
   opacity: 0;
   transition: max-height 0.4s ease, opacity 0.35s ease, margin-top 0.35s ease;
   margin-top: 0;
+  text-decoration: none;
 }
 
 .cardDesc p {
