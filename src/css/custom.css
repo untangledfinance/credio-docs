@@ -38,6 +38,7 @@
 .navbar {
   box-shadow: none;
   border-bottom: 1px solid rgba(60, 100, 180, 0.35);
+  background: #050c18 !important;
 }
 
 .navbar__title {
@@ -51,4 +52,25 @@
 
 .navbar__link:hover {
   color: #7eb5f0;
+}
+
+/* Fix any remaining white/grey backgrounds in navbar */
+.navbar > .navbar__inner,
+.navbar > .navbar__search-input,
+.navbar-sidebar,
+.navbar-collapse,
+.navbar-collapse__inner {
+  background: #050c18 !important;
+}
+
+/* Fix color mode toggle background */
+.navbar__item[data-toggle="color-mode"] {
+  background: #050c18 !important;
+}
+
+/* Fix any light backgrounds */
+[data-theme="dark"] .navbar,
+[data-theme="dark"] .navbar__inner,
+[data-theme="dark"] .navbar-sidebar {
+  background-color: #050c18 !important;
 }
