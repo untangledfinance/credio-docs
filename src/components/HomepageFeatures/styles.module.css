@@ -123,11 +123,36 @@
   margin-top: 0;
 }
 
+.cardDesc p {
+  margin: 0;
+}
+
 .card:hover .cardTitle { margin-bottom: 2px; }
 .card:hover .cardDesc {
   max-height: 140px;
   opacity: 1;
   margin-top: 10px;
+}
+
+.readDocsBtn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 16px;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #7eb5f0;
+  background: transparent;
+  border: 1px solid rgba(60, 100, 180, 0.5);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.readDocsBtn:hover {
+  color: #ffffff;
+  background: rgba(60, 100, 180, 0.2);
+  border-color: rgba(126, 181, 240, 0.6);
 }
 
 /* ── GEO LABEL TAGS ── */

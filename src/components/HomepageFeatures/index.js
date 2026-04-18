@@ -7,6 +7,7 @@ const features = [
   {
     title: "OctoPos",
     description: "Real-time DeFi position tracking and analytics. Access comprehensive wallet data, transaction history, and portfolio metrics through our powerful API.",
+    link: "/docs/category/octopos",
     label1: "POSITION TRACKING",
     label2: "RISK MONITORING",
     icon: (
@@ -21,6 +22,7 @@ const features = [
   {
     title: "Credio Agents",
     description: "Create and deploy AI agents that interact with DeFi protocols. Build intelligent automation for trading, portfolio management, and analytics.",
+    link: "/docs/category/credio-agents",
     label1: "AI AUTOMATION",
     label2: "STRATEGY EXECUTION",
     icon: (
@@ -78,7 +80,10 @@ export default function HomepageFeatures() {
                 {feature.icon}
               </div>
               <div className={styles.cardTitle}>{feature.title}</div>
-              <div className={styles.cardDesc}>{feature.description}</div>
+              <div className={styles.cardDesc}>
+                <p>{feature.description}</p>
+                <Link to={feature.link} className={styles.readDocsBtn}>Read Docs</Link>
+              </div>
             </div>
           </Link>
         ))}
