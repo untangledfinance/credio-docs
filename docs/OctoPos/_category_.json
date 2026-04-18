@@ -1,8 +1,8 @@
 {
     "label": "OctoPos",
-    "position": 4,
+    "position": 1,
     "link": {
         "type": "generated-index",
-        "description": "OctoPos is a comprehensive DeFi intelligence platform for Stellar — providing real-time position tracking, risk monitoring, transaction building, multi-channel notifications, and X402-based API subscriptions."
+        "description": "A production-ready DeFi intelligence platform for Stellar — real-time position tracking, risk monitoring, transaction building, and API subscriptions via X402."
     }
 }

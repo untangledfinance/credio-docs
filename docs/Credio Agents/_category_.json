@@ -1,8 +1,8 @@
 {
     "label": "Credio Agents",
-    "position": 5,
+    "position": 2,
     "link": {
         "type": "generated-index",
-        "description": "Credio Agents are autonomous on-chain agents that monitor and act on Stellar DeFi positions — powered by OctoPos RMS for risk signals and x402 for API subscriptions."
+        "description": "Autonomous on-chain agents that monitor and act on Stellar DeFi positions — powered by OctoPos RMS for risk signals."
     }
 }
