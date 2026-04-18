@@ -29,4 +29,26 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
   --text-primary: white;
+  --ifm-background-color: #050c18;
+  --ifm-navbar-background-color: #050c18;
+  --ifm-navbar-link-color: #ffffff;
+  --ifm-navbar-link-hover-color: #7eb5f0;
+}
+
+.navbar {
+  box-shadow: none;
+  border-bottom: 1px solid rgba(60, 100, 180, 0.35);
+}
+
+.navbar__title {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.navbar__link {
+  color: #ffffff;
+}
+
+.navbar__link:hover {
+  color: #7eb5f0;
 }
