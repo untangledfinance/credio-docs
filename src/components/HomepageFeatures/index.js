@@ -39,7 +39,7 @@ const features = [
 export default function HomepageFeatures() {
   return (
     <section className={styles.features}>
-      <h2 className={styles.sectionTitle}>Solutions</h2>
+      <h2 className={styles.sectionTitle}>Build on Credio</h2>
       <div className={styles.grid}>
         {features.map((feature, idx) => (
           <Link
