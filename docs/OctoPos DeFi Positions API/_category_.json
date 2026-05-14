@@ -1,8 +1,0 @@
-{
-    "label": "OctoPos DeFi Positions API",
-    "position": 1,
-    "link": {
-        "type": "generated-index",
-        "description": "DeFi position tracking API for Stellar — real-time position data, supported sources, adapters, and subscription management via X402."
-    }
-}
