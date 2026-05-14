@@ -15,7 +15,7 @@ const NAV_COLUMNS: NavColumn[] = [
     title: 'Resources',
     links: [
       { label: 'Insights', href: '/#insights' },
-      { label: 'Documentation', href: 'https://docs.credio.network/docs/category/octopos-defi-positions-api', external: true },
+      { label: 'Documentation', href: 'https://docs.credio.network/docs/category/octopos', external: true },
     ],
   },
   {
