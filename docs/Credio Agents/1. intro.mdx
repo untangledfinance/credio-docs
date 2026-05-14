@@ -2,7 +2,7 @@
 
 ## What are Credio Agents?
 
-**Credio Agents** are autonomous on-chain agents that watch your Stellar DeFi positions around the clock and act on your behalf when risk becomes critical. They turn [OctoPos](../OctoPos%20DeFi%20Positions%20API/intro) risk intelligence into real, timely execution — so your positions stay safe even while you sleep.
+**Credio Agents** are autonomous on-chain agents that watch your Stellar DeFi positions around the clock and act on your behalf when risk becomes critical. They turn [OctoPos](/docs/OctoPos/DeFi%20Positions%20API/intro) risk intelligence into real, timely execution — so your positions stay safe even while you sleep.
 
 The first agent in the family is the **Credio Agent for OctoPos** — it monitors Blend Capital lending positions and automatically closes them the moment risk reaches emergency level.
 
@@ -28,7 +28,7 @@ When RMS returns `emergency`, the agent broadcasts a pre-signed unwind transacti
 To minimize reaction time, the agent keeps a ready-to-submit close transaction on hand, refreshed every few minutes or whenever positions change.
 
 ### X402 Subscription Self-Management
-The agent pays for its own OctoPos API access through the [X402 payment protocol](../OctoPos%20DeFi%20Positions%20API/subscriptions), using Stellar USDC. Keys are renewed automatically before expiry.
+The agent pays for its own OctoPos API access through the [X402 payment protocol](/docs/OctoPos/DeFi%20Positions%20API/subscriptions), using Stellar USDC. Keys are renewed automatically before expiry.
 
 ### Deduplication
 A two-layer guard prevents the same position from being closed twice — a short-lived cooldown cache plus a permanent audit record.
@@ -102,7 +102,7 @@ A notification pipeline is scaffolded for upcoming Telegram, Discord, and Slack 
 |----------|---------------|--------|
 | Blend Capital | Lending (supply + borrow) | Unwind: repay debt → withdraw collateral → swap to base |
 
-Additional protocols — Aquarius, SoroSwap, Phoenix, FxDAO — are on the roadmap, tracking [OctoPos adapter coverage](../OctoPos%20DeFi%20Positions%20API/supported-sources).
+Additional protocols — Aquarius, SoroSwap, Phoenix, FxDAO — are on the roadmap, tracking [OctoPos adapter coverage](/docs/OctoPos/DeFi%20Positions%20API/supported-sources).
 
 ## Relationship to OctoPos
 
@@ -110,6 +110,6 @@ Additional protocols — Aquarius, SoroSwap, Phoenix, FxDAO — are on the roadm
 |-------------------|--------------------|
 | [RMS](../OctoPos%20RMS%20Portfolio%20Risk%20Monitoring%20Services/rms) | Risk signal source |
 | [TxB](./txb) | Transaction proposal reference |
-| [X402 Subscriptions](../OctoPos%20DeFi%20Positions%20API/subscriptions) | Payment rail for API access |
+| [X402 Subscriptions](/docs/OctoPos/DeFi%20Positions%20API/subscriptions) | Payment rail for API access |
 
 See [Credio Agent](./credio-agent) for how the agent behaves, [Architecture](./architecture) for the pieces under the hood, and [Operations](./operations) for deployment.
