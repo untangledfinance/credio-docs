@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Credio Agent** is an autonomous guardian for your Stellar DeFi positions. It watches risk in real time through [OctoPos RMS](../OctoPos/rms) and closes Blend Capital lending positions the moment risk hits the `emergency` level.
+The **Credio Agent** is an autonomous guardian for your Stellar DeFi positions. It watches risk in real time through [OctoPos RMS](../OctoPos%20RMS%20Portfolio%20Risk%20Monitoring%20Services/rms) and closes Blend Capital lending positions the moment risk hits the `emergency` level.
 
 It runs continuously, pays for its own data access, and records every decision it makes.
 
@@ -35,7 +35,7 @@ Two layers protect against duplicate actions:
 A daily subscription job keeps the agent's OctoPos API key valid:
 
 1. Checks the currently stored key
-2. If missing or near expiry, pays via [X402](../OctoPos/subscriptions) in Stellar USDC
+2. If missing or near expiry, pays via [X402](../OctoPos%20DeFi%20Positions%20API/subscriptions) in Stellar USDC
 3. Stores the new key and resumes polling
 
 ### 6. Audits Everything
@@ -52,7 +52,7 @@ The agent mirrors RMS semantics directly:
 | `alert` | Monitor only (soft actions on roadmap) |
 | `emergency` | Close the position immediately |
 
-See [RMS Risk Levels](../OctoPos/rms#risk-levels) for the underlying health-factor bands.
+See [RMS Risk Levels](../OctoPos%20RMS%20Portfolio%20Risk%20Monitoring%20Services/rms#risk-levels) for the underlying health-factor bands.
 
 ## Reaction Path
 

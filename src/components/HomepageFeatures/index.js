@@ -7,7 +7,7 @@ const features = [
   {
     title: "OctoPos",
     description: "Real-time DeFi position tracking and analytics. Access comprehensive wallet data, transaction history, and portfolio metrics through our powerful API.",
-    link: "/docs/category/octopos",
+    link: "/docs/category/octopos-defi-positions-api",
     label1: "POSITION TRACKING",
     label2: "RISK MONITORING",
     icon: (
