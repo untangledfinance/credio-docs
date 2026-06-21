@@ -1,0 +1,86 @@
+# OctoPos EVM — Supported Chains
+
+**V8.3 (2026-06-19).** 16 chains supported; 9 chains deferred due to missing public infrastructure.
+
+## 16 supported chains
+
+| Chain ID | Name | Native Token | Support Level | Notes |
+|---|---|---|---|---|
+| 1 | Ethereum | ETH | **Full** (DeFi + balances) | All 17 adapters active |
+| 10 | OP Mainnet | ETH | Balances + wallet | — |
+| 56 | BNB Smart Chain | BNB | Balances + wallet | — |
+| 100 | Gnosis | XDAI | Balances + wallet | — |
+| 137 | Polygon | MATIC | Balances + wallet | — |
+| 250 | Fantom | FTM | Balances + wallet | — |
+| 324 | zkSync Era | ETH | Balances + wallet | — |
+| 8453 | Base | ETH | Balances + wallet | — |
+| 42161 | Arbitrum One | ETH | Balances + wallet | — |
+| 43114 | Avalanche C-Chain | AVAX | Balances + wallet | — |
+| 42220 | Celo | CELO | Balances + wallet | — |
+| 81457 | Blast | ETH | Balances + wallet | — |
+| 59144 | Linea | ETH | Balances + wallet | — |
+| 534352 | Scroll | ETH | Balances + wallet | — |
+| 5000 | Mantle | MNT | Balances + wallet | — |
+| 999 | HyperEVM | HYPE | Balances + wallet (native only) | No Blockscout v2 — ERC-20 discovery not available |
+
+<Note>
+The `/v1/evm/balances` endpoint defaults to the **13-chain default tag** (the same chains Dune Sim's `default` tag expands to: Ethereum, Optimism, BNB, Gnosis, Polygon, zkSync, HyperEVM, Base, Arbitrum, Celo, Avalanche, Blast, Zora). The other 3 chains (Fantom, Linea, Scroll, Mantle) are addressable by explicit `chain_ids`. Zora (7777777) is omitted from the positions route — its DeFi ecosystem is too thin — but is reachable via `/v1/evm/balances` for ERC-20 discovery.
+</Note>
+
+## What "Full" vs "Balances + wallet" means
+
+- **Full (Ethereum only)** — `GET /v1/evm/positions/:chainId/:address` returns DeFi protocol positions (Aave, Compound, Uniswap, etc.) **plus** token balances. The DeFi adapter pipeline is active.
+- **Balances + wallet (15 other chains)** — Positions route returns native balance + top ERC-20s. The DeFi adapter layer is Ethereum-only; protocol positions on other chains return zero.
+
+## 9 deferred chains
+
+These chains are supported by DeBank but lack public Blockscout / RPC / DefiLlama coverage. OctoPos does not index them. Revisit quarterly as paid infrastructure or self-hosted nodes become available.
+
+| Chain ID | Name | Reason for deferral |
+|---|---|---|
+| 4200 | Merlin | No public Blockscout / RPC / DefiLlama |
+| 223 | B² | No public Blockscout / RPC / DefiLlama |
+| 4102 | Sonic | No public Blockscout / RPC / DefiLlama |
+| 25 | Cronos | No public Blockscout / RPC / DefiLlama |
+| 1116 | Core | No public Blockscout / RPC / DefiLlama |
+| 8217 | Kaia | No public Blockscout / RPC / DefiLlama |
+| 1088 | Metis | No public Blockscout / RPC / DefiLlama |
+| 34443 | Mode | No public Blockscout / RPC / DefiLlama |
+| 167000 | Taiko | No public Blockscout / RPC / DefiLlama |
+
+## Per-chain token discovery
+
+Token discovery (finding what ERC-20s a wallet holds) uses two sources:
+
+1. **Blockscout v2** — free public API, primary source for most chains
+2. **Top-tokens multicall** — hand-curated ~80 tokens + viem `balanceOf`, Ethereum-only fallback
+
+| Chain | Blockscout | Top-Tokens Fallback |
+|---|---|---|
+| Ethereum | `eth.blockscout.com` | yes |
+| Polygon | `polygon.blockscout.com` | — |
+| Arbitrum | `arbitrum.blockscout.com` | — |
+| BNB | `bscscan.com` (Etherscan family) | — |
+| Gnosis | `gnosis.blockscout.com` | — |
+| Celo | `celo.blockscout.com` | — |
+| zkSync | `explorer.zksync.io` (native) | — |
+| Base | falls back to `eth.blockscout.com` (over-reports ETH) | — |
+| Optimism | falls back to `eth.blockscout.com` (over-reports ETH) | — |
+| Avalanche | falls back to `eth.blockscout.com` (no dedicated instance) | — |
+| Blast | falls back to `eth.blockscout.com` (no dedicated instance) | — |
+| HyperEVM | No public instance | — |
+| Zora | No public instance | — |
+
+<Warning>
+**Base, Optimism, Avalanche, Blast — known data quality issue.** These chains do not have reliable per-chain Blockscout instances. The route falls back to `eth.blockscout.com`, which returns **Ethereum** token holdings but reports them under the queried chain. This causes 2–4× over-counting of ETH holdings on these chains. If your use case requires accurate per-chain ERC-20 attribution, treat Base/Optimism/Avalanche/Blast holdings as a lower bound, not a precise total.
+</Warning>
+
+<Warning>
+**HyperEVM and Zora — no Blockscout at all.** Only the native token balance is returned. ERC-20 discovery is not available on these chains.
+</Warning>
+
+## Cross-links
+
+- [Overview](1.%20overview) — deployment, architecture, version status
+- [Capabilities and endpoints](3.%20capabilities) — 16 DeFi adapters + 8 endpoints
+- [Untangled OctoPos engineering: per-adapter matrix (feat/evm-port)](https://github.com/untangledfinance/octopos/blob/feat/evm-port/docs/evm-coverage.md#per-chain-adapter-coverage-positions-route)
