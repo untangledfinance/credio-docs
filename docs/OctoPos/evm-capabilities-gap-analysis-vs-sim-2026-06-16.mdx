@@ -1,0 +1,503 @@
+---
+title: OctoPos EVM — Capabilities Gap Analysis vs Dune Sim
+type: Product engineering brief
+status: Draft v3 (2026-06-16, timeline/build effort estimates removed; capability gaps only)
+owner: OctoPos engineering
+related: "[[wiki/agents/agent-06-celo-tax-portfolio/README]]" · "[[wiki/domain/credio-agent-platform/01-architecture]]" · "[[wiki/domain/top3-agent-plans]]"
+sources:
+  - https://docs.sim.dune.com/ (web pages, fetched 2026-06-16)
+  - https://docs.sim.dune.com/llms-full.txt — full Sim documentation for LLM agents, mirrored at `raw/articles/sim-defi-positions-docs-llm.md` (664 KB)
+---
+
+# OctoPos EVM — Capabilities Gap Analysis vs Dune Sim
+
+**Purpose**: Map every Dune Sim API capability to the work needed to bring OctoPos EVM to parity, so the build is scoped against a known competitor surface rather than discovered in flight.
+
+**Scope**: This document covers *infrastructure parity* (data surface, position types, pricing, webhooks, error handling, rate limits). It does **not** cover the agent-layer differentiation (regulatory depth, audit trail design, MCP server surface) — that is a separate brief.
+
+**Update history**:
+- v3 (2026-06-16) — removed all timeline / build effort estimates per user request; capability gaps only
+- v2 (2026-06-16) — added Stablecoins + Transactions endpoints (distinct from Activity), confirmed DeFi Positions is BETA at 4N CU per chain, added explicit CU cost formulas, added default-tag detail (13 chains), added per-chain support variation (DeFi not on all chains), added "Ask first" / "Never" rules, added no-WebSocket constraint, added more authoritative response shapes
+- v1 (2026-06-16) — initial draft
+
+---
+
+## 0. TL;DR — capability gaps at a glance
+
+| # | Capability | Sim status | OctoPos EVM status |
+|---|------------|------------|---------------------|
+| 1 | **Multi-chain token balances** (ERC20 + native, 60+ EVM chains) | Production (stable) | Not started |
+| 2 | **DeFi positions** (lending, LP, staking, vaults, veNFTs) | **BETA** at /v1/, 4N CU per chain, per-chain support varies | Partial (Stellar Blend/Aquarius only) — **defer to v2 since Sim itself is beta** |
+| 3 | **Activity** (transfers, swaps, mints, burns, calls — with `activity_type` filter) | Production (stable), 3 CU fixed | Partial (Celoscan V2 only) |
+| 4 | **Transactions** (raw tx data with `decode` flag, distinct from Activity) | Production (stable), 1 CU fixed | Not started — reuse Agent 06 pipeline |
+| 5 | **NFTs / collectibles** with spam scoring (`is_spam` + `show_spam_scores`) | Production (stable) | Not started — DEFER until an agent needs it |
+| 6 | **Historical price oracle** (multi-offset, 720h/168h/24h, max 3) | Production (stable) | DefiLlama only (no multi-offset shape) |
+| 7 | **Token metadata enrichment** (logo, pool size, fully diluted value) | Production (stable), 2 CU fixed | Not started |
+| 8 | **Webhooks / subscriptions** (balances/activities/transactions; 2 CU/event) | Production (stable), 5 retries/24h | Not started |
+| 9 | **CU rate-limit & cost model** (`N per chain` formula, 402 quota exceeded) | Production | Not modelled |
+| 10 | **Pagination + cursor-based offset** (never construct own offset) | Production | Ad-hoc per endpoint |
+| 11 | **Spam token filtering** (`exclude_spam_tokens`, `filter_spam` on collectibles) | Production (stable) | Not implemented |
+| 12 | **Stablecoins** (separate endpoint `/v1/evm/balances/{address}/stablecoins`, N CU per chain) | Production (stable) | Not implemented |
+| 13 | **Re-org detection for activity** | Production (stable) | Not implemented |
+| 14 | **Supported-chains discovery endpoint** (`default` tag = 13 chains) | Production (stable) | Hardcoded |
+| 15 | **Token holders distribution** (separate `token-holders` tag, 2 CU fixed) | Production (stable) | Not started |
+
+**Important update from v1**: **DeFi Positions is in BETA at /v1/** (per the LLM agent reference). The build for DeFi positions can therefore be deferred or scoped down — we don't need to ship parity for a feature that Sim itself hasn't promoted to stable. Stable priority order:
+1. Balances, Activity, Transactions, Token Info, Token Holders, Supported Chains — all stable
+2. Stablecoins (stable) — small incremental
+3. Subscriptions (stable) — webhooks
+4. DeFi Positions (BETA) — defer; if we ship it, we have an edge over a competitor whose feature is still in beta
+5. Collectibles (stable) — defer; no agent needs it yet
+
+**Key gaps vs Sim's actual moat**: Sim is data infrastructure (realtime enrichment + normalization across 60+ chains). OctoPos's moat is **not** data infrastructure — it's the **agent layer on top** (regulatory depth, MCP tools for compliance, risk reasoning). The build should match Sim's *surface* but be optimised for the agent's *use cases* (compliance monitoring, risk aggregation, regulatory reporting), not for raw speed or coverage.
+
+---
+
+## 1. Sim API — capability inventory (source: docs.sim.dune.com + llms-full.txt, 2026-06-16)
+
+### 1.1 Coverage
+
+- **60+ EVM chains** (Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche, plus L2s and sidechains)
+- **Solana** (separate namespace, `/beta/svm/`)
+- **Per-chain stability flag**: `stable` or `preview` — chains can move between states without notice
+- **Default tag (when `chain_ids` is omitted)**: expands to 13 mainnet chains — Ethereum (1), Optimism (10), BNB (56), Gnosis (100), Polygon (137), zkSync (324), HyperEVM (999), Base (8453), Arbitrum (42161), Arbitrum Nova (42170), Celo (42220), Avalanche C-Chain (43114), Blast (81457), Zora (7777777)
+- **Critical**: chain names are NOT accepted in `chain_ids` — use numeric IDs or tags (`default`, `mainnet`, `testnet`, `devnet`) only
+- **Note**: Celo (42220) is in the default tag — Agent 06's Celo pipeline is on a chain that Sim already supports out-of-the-box
+
+### 1.2 Endpoints (authoritative list, source: `llms-full.txt`)
+
+| Endpoint | Method | Path | CU | Status | Key Parameters |
+|----------|--------|------|-----|--------|----------------|
+| Balances | GET | `/v1/evm/balances/{address}` | N per chain | Stable | `chain_ids`, `filter_type` (erc20\|native), `asset_class` (stablecoin), `metadata` (logo,url,pools), `exclude_spam_tokens`, `historical_prices` (hours, max 3), `offset`, `limit` (max 1000) |
+| Balances (single token) | GET | `/v1/evm/balances/{address}/token/{token_address}` | 1 | Stable | `chain_ids` (exactly one). Use `"native"` for native assets |
+| **Stablecoins** | GET | `/v1/evm/balances/{address}/stablecoins` | N per chain | Stable | `chain_ids`, `offset`, `limit` — **separate endpoint, not just a filter** |
+| Activity | GET | `/v1/evm/activity/{address}` | 3 | Stable | `chain_ids`, `activity_type` (send,receive,mint,burn,swap,approve,call), `asset_type` (native,erc20,erc721,erc1155), `token_address`, `offset`, `limit` (max 100) |
+| **Transactions** | GET | `/v1/evm/transactions/{address}` | 1 | Stable | `chain_ids`, `decode` (bool), `offset`, `limit` (max 100) — **distinct from Activity; lower CU cost** |
+| Collectibles | GET | `/v1/evm/collectibles/{address}` | N per chain | Stable | `chain_ids`, `filter_spam` (bool, default true), `show_spam_scores` (bool), `offset`, `limit` (max 500) |
+| Token Info | GET | `/v1/evm/token-info/{address}` | 2 | Stable | `chain_ids` (required, single), `historical_prices` (hours, max 3), `offset`, `limit`. Use `"native"` for native assets |
+| Token Holders | GET | `/v1/evm/token-holders/{chain_id}/{address}` | 2 | Stable | `offset`, `limit` (max 500) |
+| Supported Chains | GET | `/v1/evm/supported-chains` | 0 | Stable | None |
+| **DeFi Positions** | GET | `/v1/evm/defi/positions/{address}` | 4N per chain | **BETA** | `chain_ids` only — **DeFi not supported on all chains** (e.g., Abstract, Fantom, World = no DeFi per per-chain endpoint matrix) |
+
+**SVM (Solana) endpoints — also in `/beta/`**:
+- Balances: `/beta/svm/balances/{address}` — N per chain, uses `chains` param (solana, eclipse, all) not `chain_ids`
+- Transactions: `/beta/svm/transactions/{address}` — 1 CU, solana only
+
+### 1.3 Subscriptions (Webhooks) — Stable
+
+| Operation | Method | Path | CU |
+|-----------|--------|------|-----|
+| Create Webhook | POST | `/v1/evm/subscriptions` | 0 |
+| List Webhooks | GET | `/v1/evm/subscriptions` | 0 |
+| Get Webhook | GET | `/v1/evm/subscriptions/{id}` | 0 |
+| Update Webhook | PATCH | `/v1/evm/subscriptions/{id}` | 0 |
+| Delete Webhook | DELETE | `/v1/evm/subscriptions/{id}` | 0 |
+| Events delivered | — | — | 2 per event |
+
+Event types: `balances`, `activities`, `transactions`. Retries: exponential backoff, 5 attempts over 24h.
+Validate via `dune-webhook-signature` header. Track retries via `dune-webhook-retry-index`.
+
+### 1.4 Response shapes (authoritative from `llms-full.txt`)
+
+```
+Balances:        { wallet_address, balances: [{ chain, chain_id, address, symbol, name, amount, decimals, price_usd, value_usd, pool_size, low_liquidity }], warnings, next_offset }
+Activity:        { activity: [{ chain_id, block_number, block_time, tx_hash, type, asset_type, token_address, from, value, value_usd, token_metadata: { symbol, decimals, price_usd } }], next_offset }
+Transactions:    { wallet_address, transactions: [{ chain, address, block_time, block_number, hash, from, to, value, success }], next_offset }
+Token Info:      { contract_address, tokens: [{ chain_id, chain, symbol, name, decimals, price_usd, pool_size, total_supply, fully_diluted_value, logo }], next_offset }
+Collectibles:    { wallet_address, collectibles: [{ chain, chain_id, contract_address, token_id, token_standard, name, symbol, balance, is_spam }], next_offset }
+Token Holders:   { holders: [{ address, balance, share }], next_offset }
+DeFi Positions:  { wallet_address, positions: [{ type, chain_id, protocol, pool, usd_value }], aggregations: { total_usd_value, total_by_chain } }
+```
+
+**Note on the DeFi Positions response shape**: it's *flat* (no nested `legs: [{type: supply|borrow}]` for lending, no `tokens: [{token0, token1, tick_lower, tick_upper}]` for LP). The earlier WebFetch of `docs.sim.dune.com/evm/defi-positions` showed a more detailed nested shape — the authoritative LLM doc shows a flatter shape. The flat shape is what the agent reference publishes; the nested shape is what the per-page docs may show. **For OctoPos EVM, plan for the flat shape (positions, type, chain_id, protocol, pool, usd_value) and add nested detail in our own adapter as needed.**
+
+### 1.5 Critical "Always / Ask first / Never" rules (from LLM agent reference)
+
+**ALWAYS**:
+- Include `X-Sim-Api-Key` header
+- Use HTTPS
+- Pass explicit `chain_ids` (don't rely on default tag — 13-chain scan is expensive)
+- Handle `next_offset` pagination
+- Check `warnings[]` in 200 responses
+- Exponential backoff on 429/500
+
+**ASK FIRST**:
+- Omitting `chain_ids` (default tag = 13 chains, expensive)
+- Using `/beta/` endpoints in production
+- Creating webhooks (ongoing CU cost)
+
+**NEVER**:
+- Construct your own offset values
+- Use chain names in `chain_ids` (numeric IDs or tags only)
+- Assume endpoints share parameters/response shapes
+- Hardcode API keys in client-side code
+- Expect write/transaction capabilities (read-only except subscriptions)
+
+### 1.6 Error handling (HTTP)
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| 400 | Malformed request | Check address format and parameters |
+| 401 | Invalid/missing API key | Verify `X-Sim-Api-Key` header |
+| 402 | CU quota exceeded | Upgrade plan; do not retry |
+| 404 | Not found | Check endpoint URL and path params |
+| 429 | Rate limited | Exponential backoff, then retry |
+| 500 | Server error | Retry after short delay |
+
+Error response: `{"error": "..."}` (field may be `error` or `message`).
+**Warning: 200 responses can include `warnings[]` array** (e.g., `UNSUPPORTED_CHAIN_IDS`) alongside valid data. Always check for warnings.
+
+### 1.7 What the Sim API does NOT support (constraints)
+
+- **No write/POST endpoints** (read-only, except subscription management)
+- **No historical balance snapshots** (`historical_prices` = past prices, not past balances)
+- **No WebSocket streaming** (use REST polling or webhooks)
+- **No ENS/domain resolution** (resolve names before calling)
+- **No combined EVM + SVM in one call** (separate namespaces)
+- **No custom SQL/query execution** (not Dune Query API)
+- **No token swap/DEX routing**
+- **No chain names in `chain_ids` parameter**
+
+### 1.8 Per-chain endpoint support variation
+
+DeFi Positions is **not available on every chain**. From the per-chain support matrix in the LLM doc:
+- **With DeFi Positions support**: Arbitrum, Base, Ethereum (major L1s)
+- **Without DeFi Positions support**: Abstract, Fantom, World, Linea, and most L2s/alt-L1s (DeFi appears only on a small subset)
+
+**Implication for OctoPos EVM**: when building DeFi adapters, prioritize chains that have proven DeFi position support (Ethereum, Arbitrum, Base first), then expand to chains as Sim adds them. The per-chain support matrix will be the source-of-truth for what we can actually deliver.
+
+### 1.9 Compute Units (authoritative formula)
+
+| Endpoint | Type | Formula |
+|----------|------|---------|
+| Balances (EVM & SVM) | Chain-dependent | N (1 per chain) |
+| Balances (single token) | Fixed | 1 |
+| Stablecoins | Chain-dependent | N |
+| Collectibles | Chain-dependent | N |
+| DeFi Positions | Chain-dependent | 4N (4 per chain) |
+| Activity | Fixed | 3 |
+| Transactions (EVM & SVM) | Fixed | 1 |
+| Token Info | Fixed | 2 |
+| Token Holders | Fixed | 2 |
+| Subscriptions | Event-based | 2 per event |
+
+**If `chain_ids` is omitted, the `default` tag expands to 13+ chains. Always pass explicit `chain_ids` for predictable costs.**
+
+---
+
+## 2. OctoPos — current capability inventory (June 2026)
+
+### 2.1 OctoPos Stellar (production)
+
+- **DeFi position API** (live on Stellar since 2025): single API call returns lending positions (Blend), liquidity pools (Aquarius, SoroSwap, Phoenix), vault shares (ERC-4626-equivalent on Soroban), leveraged positions
+- **Real-time NAV** for protocol-aware positions
+- **Caching layer**: 60s cache, <10s cold query (per `introducing-octopos-defi-api.md`)
+- **Multi-protocol** support: Blend Capital, Aquarius, SoroSwap, Phoenix, FxDAO
+- **No webhook streaming** (poll-based)
+- **Limited chain coverage** (Stellar only)
+
+### 2.2 OctoPos-Celo (Agent 06, shipped 2026-06-14)
+
+- **Celo transaction history** via Celoscan V2 API
+- **No DeFi position API** for Celo (only raw tx history)
+- **ERC-4626 vault oracle** via `convertToAssets` on-chain view
+- **DefiLlama price oracle** (no key, historical prices)
+- **Classification chain**: rules → protocol-decoder → selector-registry → LLM fallback (capped)
+- **MCP server surface**: 7 tools (`get_celo_portfolio`, `get_celo_transaction_history`, `get_token_price_history`, `calculate_tax_liability`, `get_staking_rewards`, `generate_tax_report`, `get_carf_report`)
+- **No webhook streaming**, **no balance normalisation**, **no DeFi position coverage**
+
+### 2.3 What's currently shared infrastructure
+
+- **Celo RPC connector** (EVM) — reusable for other EVM chains with chain ID swap
+- **EVM tx classification logic** — reusable for activity classification
+- **DefiLlama oracle** — no key required, reusable
+- **MCP server skeleton** — hand-rolled stdio JSON-RPC, deterministic across hosts
+- **ERC-4626 vault oracle pattern** (`convertToAssets`) — directly portable to EVM ERC-4626 vaults
+
+---
+
+## 3. Capability-by-capability build plan
+
+### 3.1 Multi-chain token balances (Priority: HIGH — Agent 1 + Agent 8 use case)
+
+**Sim surface**: `GET /v1/evm/balances/{address}?chain_ids=1,8453&filters=erc20,native&asset_class=stablecoin&exclude_spam_tokens=true&limit=1000&offset=<cursor>`
+
+**Response shape**: `{wallet_address, balances: [{chain, chain_id, address, amount, symbol, name, decimals, price_usd, value_usd, pool_size, low_liquidity, token_metadata: {logo, url}, pool: {pool_type, address, tokens}}], warnings, errors, next_offset, request_time, response_time}`
+
+**OctoPos EVM build**:
+- **Multi-chain RPC pool**: viem-based chain ID switcher, 60s+ chain-aware connection pooling
+- **Indexer of last resort**: for chains without reliable public RPC, fall back to Celo-style block explorer API (Etherscan, Polygonscan, Arbiscan, Basescan, etc.)
+- **Price enrichment layer**: extend DefiLlama to include `pool_size`, `low_liquidity` flag, `token_metadata` (logo URL, project URL) — currently DefiLlama only returns price
+- **Stablecoin filter** (asset_class): tag list maintained in `wiki/agents/_patterns/stablecoin-allowlist.md` (USDC, USDT, DAI, USDS, USDe, sUSDS, PYUSD, FRAX, etc.)
+- **Spam filter**: drop tokens with `pool_size < $100` or no pricing data (matches Sim's `exclude_spam_tokens`)
+- **Cursor pagination**: stable opaque cursor encoding (chain_id + page_token) — built on top of viem + Etherscan API integration
+
+**Differentiator vs Sim**: OctoPos should *also* return **regulatory classification** (is the token a stablecoin EMT under MiCAR? a security token under US Howey? a wrapped/derivative?) — this is the Credio-specific enrichment that a raw data API doesn't provide.
+
+### 3.2 DeFi positions (Priority: HIGH — Agent 3, Agent 14 primary use case)
+
+**Sim surface**: `GET /v1/evm/defi/positions/{address}` with `type` discriminator for:
+- **Lending** (Aave V3, Compound V2, Morpho, FluidVault, tokenized): supply + borrow legs, balances, USD quotes
+- **LP/AMM** (Uniswap V2, V3 NFT, V4 NFT): pool details, token0/token1, tick ranges
+- **Staking/Yield** (ERC-4626, Pendle PT/YT/LP, veNFT, Lido): lock details, underlying, expiry
+
+**Response shape**: `{positions: [{type, chain_id, protocol, tokens: [...], balance, value_usd, details: {legs: [{type: supply|borrow, balance, value_usd}]}}], aggregations: {total_usd, by_chain: {...}}}`
+
+**OctoPos EVM build**:
+- **Adapter-per-protocol pattern**: each protocol (Aave V3, Compound V2, Morpho, Fluid, Uniswap V2/V3/V4, ERC-4626, Pendle, veNFT, Lido) gets a typed adapter returning a normalised `OctoPosDeFiPosition` schema
+- **Adapter registry**: `OctoPos.adapter_registry.register('aave_v3', {chains: [1, 42161, 8453, ...], schema: lending_v1})` — matches Sim's `supported-protocols` shape
+- **Lending adapter**: call `getUserReserveData(address, asset)` for Aave V3, parse supply/borrow balances; for tokenized variants (`aTokens`), use `balanceOf(address)` + `UNDERLYING_ASSET_ADDRESS()`
+- **LP V2 adapter**: read pair contract reserves, compute `lp_value = (user_lp_balance / total_supply) × (reserve0 × price0 + reserve1 × price1)`
+- **LP V3 NFT adapter**: read `positions(tokenId)` for each NFT, compute `value = amount0 × price0 + amount1 × price1` from current tick
+- **ERC-4626 adapter**: extend existing Celo vault oracle pattern — `balanceOf(address)` × `convertToAssets(1e18)` / 1e18
+- **Pendle adapter**: read PT/YT/LP token balances, market state for implied yield
+- **Aggregations**: sum position values by chain and protocol for portfolio-level NAV
+- **Spam/preview**: surface Sim's `stable` vs `preview` flag for protocol × chain combinations
+
+**Stellar precedent**: OctoPos Stellar already does this for Blend (lending) + Aquarius/SoroSwap (LP) + Soroban vaults (ERC-4626-equivalent). The adapter pattern is the same — EVM is just a different adapter library.
+
+**Build scope (defer to v2)**: Start with 3 protocols × Ethereum mainnet (Aave V3, Uniswap V3, ERC-4626 vault), expand to 5-7 protocols × 5 chains as prospect demand emerges.
+
+**Differentiator vs Sim**: OctoPos should also return **risk signal** per position:
+- **Lending**: LTV vs liquidation threshold, oracle freshness, utilisation rate at venue
+- **LP**: impermanent loss estimate vs HODL baseline, position concentration
+- **Vault**: vault strategy composition, withdrawal queue length, slashing risk
+This is the Agent 3 (DeFi Risk) and Agent 14 (RWA in DeFi) surface — directly serves Credio's risk-overlay positioning.
+
+### 3.3 Activity / transaction history (Priority: MEDIUM — Agent 06 already does for Celo)
+
+**Sim surface**: `GET /v1/evm/activity/{address}?chain_ids=1&activity_type=swap&asset_type=erc20&limit=100&offset=<cursor>`
+
+**Activity types**: `send`, `receive`, `mint`, `burn`, `swap`, `approve`, `call` (decoded contract interactions)
+**Asset types**: `native`, `erc20`, `erc721`, `erc1155` (call activities have no asset type)
+
+**Response per activity**: `{chain_id, block_number, block_timestamp, tx_hash, activity_type, asset_type, token: {address, symbol, decimals, ...}, from, to, value (WEI), value_usd, ...}`
+
+**OctoPos EVM build**:
+- **Multi-chain indexer**: replace single Celoscan call with Etherscan-family API pool (one per chain) + viem log scraping as fallback
+- **Activity classification**: port Agent 06's 4-layer classifier (rules → protocol-decoder → selector-registry → LLM fallback) to multi-chain — the hardest part is **selector registry** (function selectors per protocol per chain) which is per-chain code
+- **Swap detection**: parse Uniswap V2/V3/V4 `Swap` event logs (well-defined ABI), identify input/output tokens from event topics
+- **Re-org detection**: Sim notes "responses include automatic re-org detection to maintain data accuracy" — for OctoPos EVM, use the same `getBlock(number)` re-check pattern Agent 06 uses for Celo (1-confirmation, re-query on reorg)
+- **Decoded contract calls**: 4byte.directory + ABI lookup for `to` address; optional (Sim does it for `call` activity type)
+
+**Differentiator vs Sim**: OctoPos should classify activities into **fiscal-event categories** (income, transfer, yield, gas, swap, vault-deposit, vault-withdraw, etc.) — this is the Agent 06 tax-classification chain. Sim's classification is generic; Credio's is jurisdiction-specific (NG FIRS, KE KRA, OECD CARF).
+
+### 3.4 NFTs / collectibles (Priority: LOW — not in current Credio agent scope)
+
+**Sim surface**: `GET /v1/evm/collectibles/{address}?chain_ids=1&limit=250&exclude_spam=true&include_spam_explanations=true`
+
+**Response per collectible**: `{contract_address, token_standard, token_id, chain, name, symbol, description, image_url, last_sale_price, metadata: {uri, attributes}, balance, last_acquired_timestamp, spam_classification}`
+
+**OctoPos EVM build**:
+- **ERC-721 + ERC-1155 enumeration** via Etherscan-style `tokennfttx` + `token1155tx` endpoints
+- **Metadata fetch** via token URI (IPFS/HTTP), with retry + timeout
+- **Spam classification**: replicate Sim's signal stack (trade volume, buyer/seller diversity, external flags, metadata URI patterns, suspicious word lists, manual classification) — **or skip entirely** unless a Credio agent needs it
+- **Pagination**: cursor-based, 250 default, 2500 max
+
+**Build scope (defer)**: Only build if a Credio agent needs it. Currently no agent frontmatter mentions NFTs. **Recommendation: DEFER** until Agent 7 (Smart Contract Spec) or Agent 13 (Corporate Actions) scope expands to NFT-based securities.
+
+### 3.5 Historical price oracle (Priority: HIGH — Agent 1, 2, 8 critical)
+
+**Sim surface**: `historical_prices` query parameter accepts up to 3 integer offsets in hours (e.g., `720,168,24` for 1 month, 1 week, 1 day ago). Response: `{offset_hours, price_usd}[]`.
+
+**OctoPos EVM build**:
+- **DefiLlama already covers this** — extend the existing `defillama.ts` integration to surface the `historical_prices` field in the same multi-offset shape Sim uses
+- **CoinGecko fallback** for tokens DefiLlama doesn't track — CoinGecko's `history` endpoint accepts date ranges
+- **Cache layer**: per-token-per-offset hash, 24h TTL for non-current offsets, 5min TTL for current offset
+- **Coverage gaps**: DefiLlama covers 90%+ of EVM tokens; for the long tail, Chainlink on-chain price feeds (no API dependency, but per-query gas cost)
+
+**Build scope**: The DefiLlama integration already exists in Agent 06 (Stellar + Celo); this is mostly packaging + caching + multi-chain address resolution.
+
+**Differentiator vs Sim**: OctoPos should also expose **NAV-computed historical price** for vault shares (using `convertToAssets` at historical block) — Sim returns price of the share token, not the NAV per share. This is critical for Agent 2 (Tokenised Fund NAV) and Agent 9 (NAV Validator).
+
+### 3.6 Token metadata enrichment (Priority: MEDIUM)
+
+**Sim surface**: per-token `{symbol, name, decimals, contract_address, chain_id, chain_name, logo_urls, pool_size, total_supply, fully_diluted_value, price_usd}`
+
+**OctoPos EVM build**:
+- **Static metadata**: pull from DefiLlama `coins` endpoint (already used in Agent 06) + CoinGecko `coins/list` for fallback
+- **Logo URLs**: DefiLlama returns icon URLs; trustwallet/assets GitHub repo as authoritative backup
+- **Pool size + FDV**: DefiLlama provides these; surface directly
+- **Per-token metadata caching**: 7-day TTL for static fields (symbol, name, decimals), 5-min TTL for dynamic (price, pool_size, FDV)
+- **Chain name resolution**: maintain `chain_id → {name, explorer, native_symbol}` map (60+ entries); replace Sim's `/v1/evm/supported-chains` discovery with a static config + override file
+
+**Build scope**: Mostly packaging.
+
+### 3.7 Webhooks / streaming (Priority: MEDIUM-HIGH — Agent 1 (real-time reserve) critical use case)
+
+**Sim surface**: CRUD API for subscriptions; webhook deliveries with HMAC signatures; 3 event types (balances, activities, transactions); 5-retry exponential backoff over 24h; 2 CU per event delivered.
+
+**OctoPos EVM build**:
+- **Subscription CRUD**: REST API to create/list/update/delete subscriptions per wallet
+- **Event detection**: per-chain block-subscription via viem `watchBlockNumber` + `watchEvent` — already a pattern in Celo (via viem + Celoscan)
+- **Webhook delivery**: HTTP POST to client endpoint with HMAC-SHA256 signature header; payload shape mirrors Sim's (chain_id, event_type, event_data, dispatch_timestamp, retry_index)
+- **Retry logic**: in-process queue with exponential backoff (5 attempts over 24h, matching Sim)
+- **Storage**: per-subscription state in Postgres (or similar) — `subscription_id`, `wallet_address`, `event_types[]`, `chain_ids[]`, `webhook_url`, `hmac_secret`, `last_event_at`, `last_delivery_at`, `retry_count`
+- **Failure modes**: dead-letter queue after 5 retries, alert on subscription with high failure rate, periodic health check ping
+- **Authentication**: HMAC verification header matches Sim's `dune-webhook-signature` pattern (or we define our own — for the Credio brand, use `credio-webhook-signature`)
+
+**Build scope**: The detection side (viem) is straightforward; the delivery reliability (retry queue, HMAC, dead-letter) is the bulk of the work.
+
+**Differentiator vs Sim**: OctoPos webhooks can carry **pre-classified event payloads** (income vs transfer vs swap, with fiscal-jurisdiction tag) — so subscribers (Credio's own agents) don't re-classify on receipt.
+
+### 3.8 Compute Unit rate-limit & cost model (Priority: LOW-MEDIUM)
+
+**Sim surface**: every API call costs 1-3 CU; webhooks cost 2 CU/event; account has CU budget per plan; overage billing or throttling.
+
+**OctoPos EVM build decision**:
+- **Option A**: replicate Sim's CU model exactly — useful for cost-pass-through to API consumers (Credio's downstream agents and external customers)
+- **Option B**: simpler rate-limit (requests-per-minute) per API key — easier to implement, less granular
+- **Option C**: no rate limit — internal use only, agents are not rate-limited against each other
+
+**Recommendation**: **Option B for v1** (rate-per-minute per API key), with hooks to add Option A later if/when OctoPos becomes a multi-tenant product offering. CU model is useful when you're selling to external customers; current OctoPos usage is internal Credio agents + a few direct customers.
+
+**Build scope (Option B)**: Token-bucket rate limiter per API key, in front of every endpoint.
+
+### 3.9 Pagination + cursor-based offset (Priority: HIGH — non-negotiable for production API)
+
+**Sim surface**: opaque `next_offset` token in response body, passed as `?offset=<token>` in next request.
+
+**OctoPos EVM build**:
+- **Token format**: base64-encoded `{chain_id, endpoint, last_pagination_state}` — opaque to client, deterministic
+- **Per-endpoint state**: balances uses cursor into a sorted+filtered in-memory list; activity uses cursor into a database-backed query (Etherscan API does the heavy lifting, we cache pages)
+- **Max page size**: balances 1000, activity 100 (matches Sim's defaults)
+- **Consistency**: when offset becomes invalid (e.g., new block added), return a fresh first page + a `reorg_detected` warning
+
+**Build scope**: Mostly caching layer + state management.
+
+### 3.10 Spam token filtering (Priority: LOW)
+
+**Sim surface**: `exclude_spam_tokens=true` (default true) drops tokens with `low_liquidity` flag (pool size <$100) or no pricing data.
+
+**OctoPos EVM build**:
+- Re-use the `low_liquidity` and missing-pricing signals already present in DefiLlama responses
+- Default ON; allow per-request opt-out
+
+**Build scope**: Trivial.
+
+### 3.11 Stablecoin filter (Priority: LOW)
+
+**Sim surface**: `asset_class=stablecoin` returns only stablecoin balances.
+
+**OctoPos EVM build**:
+- Maintain stablecoin allowlist per chain (USDC, USDT, DAI, USDS, USDe, sUSDS, PYUSD, FRAX, crvUSD, GHO, USDM, etc.) — sourced from DefiLlama `stablecoins` endpoint, refreshed daily
+- Per-request filter
+
+### 3.12 Re-org detection for activity (Priority: MEDIUM)
+
+**Sim surface**: "responses include automatic re-org detection to maintain data accuracy" — undocumented mechanism.
+
+**OctoPos EVM build**:
+- For each block in returned activity: `getBlock(block_number).hash` and check it matches the canonical block hash at that height
+- On mismatch, drop the activity, fetch next 10 blocks forward, retry
+- Apply during both initial query and webhook re-subscription (block reorgs happen on EVM L1s ~weekly; on L2s daily)
+
+**Build scope**: Mostly test coverage on different chains' reorg behavior.
+
+### 3.13 Supported-chains discovery endpoint (Priority: XS)
+
+**Sim surface**: `GET /v1/evm/supported-chains` returns the full list.
+
+**OctoPos EVM build**:
+- Static config in `octopos-evm/src/config/chains.ts` — 60+ chain entries with `{chain_id, name, rpc_url, explorer, native_symbol, block_time_ms, is_stable}`
+- Expose via `GET /v1/evm/supported-chains` (MCP tool + REST API)
+- Refresh weekly via CI job that updates the config
+
+**Build scope**: Static config + override file.
+
+### 3.14 Token holders distribution (Priority: DEFER)
+
+**Sim surface**: separate `token-holders` tag — endpoint not detailed in public docs.
+
+**OctoPos EVM build**:
+- **DEFER** until a Credio agent needs it. Potential use case: Agent 8 (Proof of Reserve) for issuer-side concentration analysis, but not on the immediate roadmap.
+
+---
+
+## 4. Capability priority ordering (no timeline)
+
+Ordered to match the Credio agent build priority from `wiki/domain/top3-agent-plans.md` and `wiki/players/prospects/SYNTHESIS.md` (focus: Agent 4, Agent 2, Agent 5, Agent 18). DeFi Positions is deprioritised (Sim's own BETA feature); Stablecoins + Transactions endpoints are added as distinct work items.
+
+### Tier 1 — Foundation (stable endpoints, unblocks Agent 1 + Agent 8)
+
+1. **#14 Supported-chains discovery** — static config + override file
+2. **#1 Multi-chain token balances** for top 5 chains (Ethereum, Base, Arbitrum, Optimism, Polygon)
+3. **#6 Historical price oracle** via DefiLlama multi-offset
+4. **#7 Token metadata enrichment**
+5. **#11 + #12 Spam + stablecoin filters**
+6. **#13 Stablecoins endpoint** (`/v1/evm/balances/{address}/stablecoins`)
+7. **#10 Pagination + cursor**
+
+**Outcome**: OctoPos EVM balances + stablecoins + price + metadata at Sim parity for top 5 chains. Unblocks Agent 1 (Stablecoin Reserve) and Agent 8 (PoR) for the 4 FCA Stablecoin Sandbox prospects (Monee, ReStabilise, VVTX, Revolut) + Ethena + Canton. **Celo is in the default tag — Agent 06's pipeline is on a chain Sim already supports out-of-the-box**.
+
+### Tier 2 — Activity + Transactions + webhooks
+
+8. **#3 Activity** multi-chain with classification chain reuse
+9. **#4 Transactions** with `decode` flag — cheaper than Activity at 1 CU vs 3 CU
+10. **#8 Webhooks / subscriptions**
+11. **#9 CU rate-limit & cost model** (Option B recommended)
+12. **#13 Re-org detection**
+
+**Outcome**: OctoPos EVM Activity + Transactions + real-time streaming. Unblocks Agent 1's real-time reserve monitoring use case (the primary webhook consumer) + Agent 6's tx-classification chain for EVM chains beyond Celo.
+
+### Tier 3 — DeFi positions (BETA parity, deferred)
+
+13. **#2 DeFi positions** for Aave V3, Compound V2, Uniswap V3 on Ethereum, Arbitrum, Base
+14. **#15 Token holders distribution** (only if Agent 8 needs it)
+
+**Outcome**: OctoPos EVM DeFi positions at Sim BETA parity. Unblocks Agent 3 (DeFi Risk) and Agent 14 (RWA in DeFi) for Ethena, Euler, Symbiotic. 
+
+### Tier 4 — Extensibility
+- Pendle adapter, Morpho Blue, FluidVault, Lido stETH, Uniswap V4 NFT
+- ERC-4626 vault oracle for institutional RWA (Agent 2 / Agent 9 use case)
+- Additional chains (SVM / Solana is the obvious extension; OctoPos already partially has Stellar)
+- **Defer NFTs/Collectibles** (#5) until Agent 7 or Agent 13 needs it
+
+---
+
+## 5. Differentiation thesis — what OctoPos EVM should NOT be
+
+**OctoPos is not trying to be a Sim competitor on the data surface.** Sim has 60+ chains, real-time indexers, dedicated engineering. Matching them on coverage is a multi-year project and not Credio's edge.
+
+**OctoPos's edge is the agent layer on top**:
+- **Regulatory enrichment**: every balance/position returns its regulatory classification (EMT, security token, e-money token, derivative). Sim returns raw token metadata.
+- **Risk overlay**: every DeFi position returns risk signals (LTV, IL, oracle freshness, slashing). Sim returns position size only.
+- **Fiscal classification**: every activity is pre-classified for tax/event purposes. Sim returns activity type only.
+- **MCP-native**: every OctoPos endpoint is an MCP tool. Sim is REST-only.
+- **Multi-tenant + per-org Skills**: OctoPos returns different enriched data per org based on their compliance profile. Sim returns the same data for everyone.
+
+**Build principle**: where Sim has a feature but it doesn't serve a Credio agent use case, **don't build it**. Where OctoPos can return *enriched* data that Sim doesn't, **build only the enrichment layer** (skip the data-layer duplication if a Sim equivalent exists, or if DefiLlama/CoinGecko suffice).
+
+**Concrete examples of "don't match Sim"**:
+- Skip NFT support until Agent 7 or Agent 13 needs it (DEFER, per Section 3.4)
+- Skip token holders distribution (DEFER, per Section 3.14)
+- Skip Sim's full 60+ chain coverage initially; start with 5 chains and grow as prospects demand
+- Skip Sim's per-protocol stability flag in user-facing responses; expose internally only
+
+---
+
+## 6. Open questions for engineering review
+
+1. **Multi-tenant API key model** — is the API key tied to a Credio org (the agent's customer) or to the Credio master account (and Credio authenticates the agent's customer downstream)? This affects how Agent 18 (Curator Briefing) cross-references OctoPos responses per prospect.
+2. **Webhook delivery cost model** — does Credio absorb the cost of the webhook delivery (in which case rate-limit aggressively) or pass it through (in which case CU-model like Sim)?
+3. **Pricing for external customers** — is OctoPos offered as a paid product (like Sim) or strictly as an internal Credio infrastructure layer? The decision affects whether to invest in the CU model + per-tenant rate limiting.
+4. **Multi-chain indexer build-vs-buy** — Alchemy, Infura, and QuickNode offer multi-chain data APIs (similar to Sim's surface but with their own differentiators). For chains where DefiLlama + Etherscan APIs suffice, no need to build; for chains requiring deeper data (Uniswap V3 NFT positions), build a custom indexer on top of RPC.
+5. **Stablebond / RWA oracle** — for tokenised RWAs (Etherfuse's Stablebonds, Ondo, BUIDL/FILQ, Backed Finance), the price oracle needs to read on-chain `convertToAssets` plus the underlying off-chain NAV. This is Agent 2 (Tokenised Fund NAV) core, not just OctoPos — clarify ownership.
+6. **Migration path for Agent 06 (Celo) users** — when OctoPos EVM goes live, do we migrate Agent 06 to use the new EVM API, or keep it on the existing Celoscan-only pipeline? Migration saves maintenance; not migrating preserves the proven pipeline.
+7. **MCP server reuse** — Agent 06's hand-rolled MCP server skeleton is reusable for OctoPos EVM. Should the OctoPos EVM surface also be exposed via MCP from day 1, or REST-first and MCP second?
+
+---
+
+## 7. Sources
+
+- https://docs.sim.dune.com/ — fetched 2026-06-16 (per-page docs: balances, activity, defi, collectibles, token-info, subscriptions, defi-positions, supported-chains, plus per-chain pages for major EVM chains)
+- https://docs.sim.dune.com/llms-full.txt — full Sim documentation for LLM agents, mirrored at `raw/articles/sim-defi-positions-docs-llm.md` (664 KB) — fetched 2026-06-16; used as the authoritative source for endpoint catalog, CU cost formulas, response shapes, and "Always/Ask first/Never" rules
+- `wiki/agents/agent-06-celo-tax-portfolio/README.md` — current OctoPos Celo implementation
+- `wiki/agents/agent-06-celo-tax-portfolio/architecture.md` — built architecture
+- `wiki/domain/top3-agent-plans.md` — Stellar-native OctoPos gaps analysis
+- `wiki/domain/credio-agent-platform/01-architecture.md` — Credio Agent Platform context
+- https://github.com/duneanalytics/sim-docs/blob/main/openapi.json — Sim OpenAPI spec (referenced for code-gen but not deeply read in this pass)
+
+---
+
+*Status: Draft v3. v3 removes all timeline / build effort estimates per user request — capability gaps only. v2 incorporated the LLM agent reference (`llms-full.txt`) — main deltas: DeFi Positions confirmed BETA (4N CU, per-chain support varies); Stablecoins is a separate endpoint not just a filter; Transactions is a separate 1-CU endpoint distinct from Activity; explicit CU formulas; default tag = 13 chains.*
