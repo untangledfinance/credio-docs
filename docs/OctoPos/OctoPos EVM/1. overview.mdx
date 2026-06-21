@@ -6,13 +6,13 @@
 
 OctoPos EVM is a parallel product surface to OctoPos Stellar. It exposes a stateless REST API and a web app for monitoring DeFi positions, ERC-20 balances, and activity across 16 EVM chains.
 
-<Tip>
+:::tip
 The EVM stack is a **separate product surface**, not a port of Stellar. It runs on its own two Cloudflare Workers (`apps/evm-api` + `apps/evm-web`) and shares only the `ui-kit` package with the Stellar side. The two surfaces do not share databases, KV, or auth at runtime.
-</Tip>
+:::
 
-<Note>
+:::note
 All endpoints are public, read-only, and stateless. No API key, no auth header, no x402 settlement. Rate limits are per-process and reset on Worker isolate restart.
-</Note>
+:::
 
 ## Live deployments
 

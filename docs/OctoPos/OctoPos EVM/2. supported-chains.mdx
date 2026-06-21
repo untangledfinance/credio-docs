@@ -23,9 +23,9 @@
 | 5000 | Mantle | MNT | Balances + wallet | — |
 | 999 | HyperEVM | HYPE | Balances + wallet (native only) | No Blockscout v2 — ERC-20 discovery not available |
 
-<Note>
+:::note
 The `/v1/evm/balances` endpoint defaults to the **13-chain default tag** (the same chains Dune Sim's `default` tag expands to: Ethereum, Optimism, BNB, Gnosis, Polygon, zkSync, HyperEVM, Base, Arbitrum, Celo, Avalanche, Blast, Zora). The other 3 chains (Fantom, Linea, Scroll, Mantle) are addressable by explicit `chain_ids`. Zora (7777777) is omitted from the positions route — its DeFi ecosystem is too thin — but is reachable via `/v1/evm/balances` for ERC-20 discovery.
-</Note>
+:::
 
 ## What "Full" vs "Balances + wallet" means
 
@@ -71,13 +71,13 @@ Token discovery (finding what ERC-20s a wallet holds) uses two sources:
 | HyperEVM | No public instance | — |
 | Zora | No public instance | — |
 
-<Warning>
+:::warning
 **Base, Optimism, Avalanche, Blast — known data quality issue.** These chains do not have reliable per-chain Blockscout instances. The route falls back to `eth.blockscout.com`, which returns **Ethereum** token holdings but reports them under the queried chain. This causes 2–4× over-counting of ETH holdings on these chains. If your use case requires accurate per-chain ERC-20 attribution, treat Base/Optimism/Avalanche/Blast holdings as a lower bound, not a precise total.
-</Warning>
+:::
 
-<Warning>
+:::warning
 **HyperEVM and Zora — no Blockscout at all.** Only the native token balance is returned. ERC-20 discovery is not available on these chains.
-</Warning>
+:::
 
 ## Cross-links
 
