@@ -1,8 +1,0 @@
-{
-    "label": "DeFi Positions API",
-    "position": 1,
-    "link": {
-        "type": "generated-index",
-        "description": "Real-time DeFi position tracking API for Stellar — portfolio data, historical snapshots, and API documentation."
-    }
-}

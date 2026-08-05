@@ -1,8 +1,0 @@
-{
-    "label": "OctoPos",
-    "position": 1,
-    "link": {
-        "type": "generated-index",
-        "description": "Multi-chain DeFi intelligence — Stellar and EVM. Position tracking, risk monitoring, NAV oracle, and transaction building."
-    }
-}
