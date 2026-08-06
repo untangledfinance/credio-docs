@@ -8,7 +8,7 @@ The Credio Agent is a small, focused service that stitches together a handful of
 |-------|------|------------|
 | Runtime | Runs the agent process | [Bun](https://bun.sh) |
 | Framework | Dependency injection, scheduled jobs, caching, logging | [`untangled-web`](https://github.com/untangledfinance/untangled-web) |
-| Risk feed | Source of risk levels and position data | [OctoPos RMS](https://docs.untangled.finance/docs/octopos/rms/rms) |
+| Risk feed | Source of risk levels and position data | [OctoPos RMS](https://docs.untangled.finance/docs/octopos/rms/) |
 | Blockchain | Reads positions, submits transactions | Stellar / Soroban |
 | Transactions | Builds unwind and swap routes | Blend Capital + Stellar Router SDK |
 | Payments | Pays for OctoPos API access | [X402](https://docs.untangled.finance/docs/octopos/defi-positions-api/subscriptions) + Stellar USDC |
