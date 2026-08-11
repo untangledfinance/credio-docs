@@ -1,0 +1,8 @@
+{
+    "label": "OctoPos EVM",
+    "position": 3,
+    "link": {
+        "type": "generated-index",
+        "description": "EVM position monitoring — 16 chains supported; full DeFi positions on Ethereum, balances + wallet on 15 other chains. V8.3."
+    }
+}
