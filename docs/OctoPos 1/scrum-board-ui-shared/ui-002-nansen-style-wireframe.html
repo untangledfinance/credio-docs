@@ -1,0 +1,2687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI-002 — Multi-Wallet Save & Manage · Nansen-style Wireframe</title>
+<style>
+  /* ── Nansen palette (sampled from the saved page meta + DOM fills) ── */
+  :root {
+    --bg:           #020713;
+    --bg-2:         #06101A;
+    --surface:      #0a1623;
+    --surface-2:    #0f1c2c;
+    --surface-hi:   #142536;
+    --border:       rgba(255, 255, 255, 0.06);
+    --border-hi:    rgba(255, 255, 255, 0.12);
+    --text:         #e4ecf5;
+    --text-dim:     #8b97a8;
+    --text-mute:    #5a6675;
+    --accent:       #4ec5ff;     /* Nansen cyan */
+    --accent-2:     #8b5cf6;     /* Nansen purple */
+    --positive:     #34d399;
+    --negative:     #f87171;
+    --warn:         #fbbf24;
+    --gold:         #f5b942;
+    --pink:         #ec4899;
+    --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Sidebar (mirrors Nansen left rail) ─────────────────────────── */
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  @media (max-width: 980px) { .app { grid-template-columns: 1fr; } .sidebar { display: none; } }
+
+  .sidebar {
+    background: var(--bg-2);
+    border-right: 1px solid var(--border);
+    padding: 18px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px 18px; font-weight: 600; font-size: 15px;
+    border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  }
+  .brand .logo {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #04111a; font-weight: 800; font-size: 12px;
+  }
+  .nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-mute); padding: 12px 10px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; color: var(--text-dim);
+    font-size: 13px; cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
+  .nav-item.active { background: var(--surface-hi); color: var(--text); }
+  .nav-item .ic {
+    width: 16px; height: 16px; display: inline-flex;
+    align-items: center; justify-content: center; color: var(--text-mute);
+    font-size: 14px;
+  }
+  .nav-item.active .ic { color: var(--accent); }
+  .sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
+  .sidebar-footer .nav-item { font-size: 12px; }
+
+  /* ── Sidebar collapse (⌘B) — collapses to icons-only rail ───────── */
+  .collapse-toggle-sidebar {
+    margin: 12px 4px 4px; padding: 8px 10px; border-radius: 8px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .collapse-toggle-sidebar:hover { background: var(--surface); color: var(--text); border-color: var(--border-hi); }
+  .collapse-toggle-sidebar .ic { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+  .collapse-toggle-sidebar kbd {
+    margin-left: auto; padding: 2px 6px; border-radius: 4px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-mute);
+  }
+  .app.sidebar-collapsed { grid-template-columns: 64px 1fr; }
+  .app.sidebar-collapsed .sidebar { padding: 18px 8px; }
+  .app.sidebar-collapsed .brand .brand-text,
+  .app.sidebar-collapsed .nav-section,
+  .app.sidebar-collapsed .nav-item span:not(.ic),
+  .app.sidebar-collapsed .collapse-toggle-sidebar .lbl,
+  .app.sidebar-collapsed .collapse-toggle-sidebar kbd { display: none; }
+  .app.sidebar-collapsed .brand { justify-content: center; padding: 8px 0 18px; }
+  .app.sidebar-collapsed .nav-item { justify-content: center; padding: 8px 6px; }
+  .app.sidebar-collapsed .nav-section { padding: 12px 0 6px; text-align: center; }
+  .app.sidebar-collapsed .nav-item .ic { margin: 0; }
+  .app.sidebar-collapsed .sidebar-footer .nav-item { justify-content: center; }
+  .app.sidebar-collapsed .collapse-toggle-sidebar { justify-content: center; padding: 8px 6px; }
+  .sidebar,
+  .app { transition: grid-template-columns 0.2s ease; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 30;
+  }
+  .topbar .left { display: flex; align-items: center; gap: 14px; }
+  .topbar .crumbs { font-size: 12px; color: var(--text-mute); }
+  .topbar .crumbs strong { color: var(--text-dim); font-weight: 500; }
+  .topbar .right { display: flex; align-items: center; gap: 10px; }
+  .change-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    background: rgba(52, 211, 153, 0.1); color: var(--positive);
+    font-family: var(--mono); font-size: 11.5px;
+    border: 1px solid rgba(52, 211, 153, 0.2);
+  }
+  .change-pill.neg { background: rgba(248, 113, 113, 0.1); color: var(--negative); border-color: rgba(248, 113, 113, 0.2); }
+  .pro-badge {
+    padding: 4px 9px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--gold), #ff8a3d);
+    color: #1a0f00; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  }
+
+  /* ── Main column ─────────────────────────────────────────────────── */
+  main { padding: 28px; max-width: 1480px; }
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 6px;
+  }
+  .page-head h1 {
+    font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -0.01em;
+  }
+  .sub-tabs { display: flex; gap: 4px; }
+  .sub-tab {
+    padding: 7px 12px; border-radius: 8px; font-size: 13px;
+    color: var(--text-dim); cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .sub-tab:hover { color: var(--text); }
+  .sub-tab.active {
+    color: var(--text); background: var(--surface-hi); border-color: var(--border);
+  }
+  .filter-row {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .filter-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; cursor: pointer;
+  }
+  .filter-pill:hover { color: var(--text); border-color: var(--border-hi); }
+  .filter-pill .ic { color: var(--text-mute); font-size: 12px; }
+  /* Protocol selector — native <select> styled into the filter-pill aesthetic */
+  .filter-pill.protocol-pill { padding: 0 8px 0 12px; gap: 4px; }
+  .filter-pill .protocol-select {
+    background: transparent; border: 0; outline: 0;
+    color: var(--text); font-size: 12px; font-family: inherit;
+    padding: 6px 0; cursor: pointer; min-width: 110px;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  }
+  .filter-pill .protocol-select:focus { color: var(--text); }
+  .filter-pill .protocol-select option {
+    background: #14181f; color: var(--text);
+  }
+  .filter-pill .protocol-label { color: var(--text-mute); font-size: 11px; }
+
+  /* ── KPI strip (Net Worth / Claimable / Total Assets / Liab / 24H) ── */
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .kpi .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-mute); margin-bottom: 6px;
+  }
+  .kpi .value {
+    font-family: var(--mono); font-size: 22px; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .kpi .delta { font-size: 11px; margin-top: 4px; color: var(--positive); font-family: var(--mono); }
+  .kpi .delta.neg { color: var(--negative); }
+  .kpi .value.accent {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  /* ── Two-column area: Allocation donut | Breakdown table ────────── */
+  .grid-2 {
+    display: grid; grid-template-columns: 360px 1fr; gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+  }
+  .panel-h {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .panel-h h2 { font-size: 14px; font-weight: 600; margin: 0; color: var(--text); }
+  .panel-h .hint { font-size: 11px; color: var(--text-mute); }
+
+  /* ── Donut (Address Allocation) ─────────────────────────────────── */
+  .donut-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 8px 0 4px;
+  }
+  .donut { position: relative; width: 200px; height: 200px; }
+  .donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .donut-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px;
+  }
+  .donut-center .v { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .donut-center .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mute); }
+  .donut-legend { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .legend-row {
+    display: grid; grid-template-columns: 14px 1fr auto auto; gap: 8px;
+    align-items: center; font-size: 12px;
+    padding: 4px 0;
+  }
+  .legend-row .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .legend-row .lbl { color: var(--text-dim); font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-row .pct { color: var(--text); font-family: var(--mono); font-size: 12px; }
+  .legend-row .view { color: var(--accent); font-size: 11px; cursor: pointer; }
+  .legend-row .view:hover { text-decoration: underline; }
+
+  /* ── Address Breakdown table ─────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; }
+  table.addr-table {
+    width: 100%; border-collapse: collapse; font-size: 12.5px;
+  }
+  .addr-table th {
+    text-align: left; padding: 10px 12px; font-weight: 500;
+    color: var(--text-mute); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; border-bottom: 1px solid var(--border);
+  }
+  .addr-table th.num, .addr-table td.num { text-align: right; font-family: var(--mono); }
+  .addr-table td {
+    padding: 12px; border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .addr-table tr:last-child td { border-bottom: none; }
+  .addr-table tr:hover td { background: var(--surface-2); }
+  .addr-table .addr-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .addr-table .addr-cell .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+  .addr-table .addr-cell .addr { font-family: var(--mono); color: var(--text); font-size: 12px; }
+  .addr-table .chain-badge {
+    display: inline-block; padding: 2px 7px; border-radius: 5px;
+    font-size: 10.5px; background: rgba(78, 197, 255, 0.12);
+    color: var(--accent); border: 1px solid rgba(78, 197, 255, 0.25);
+  }
+  .addr-table .chain-badge.stellar { background: rgba(139, 92, 246, 0.12); color: var(--accent-2); border-color: rgba(139, 92, 246, 0.25); }
+  .addr-table .share-bar {
+    display: inline-block; width: 60px; height: 4px; background: var(--surface-hi);
+    border-radius: 2px; overflow: hidden; vertical-align: middle; margin-right: 6px;
+  }
+  .addr-table .share-bar > i { display: block; height: 100%; background: var(--accent); }
+  .addr-table .more {
+    color: var(--accent); cursor: pointer; font-family: var(--mono); font-size: 11.5px;
+    text-align: center; padding: 10px;
+  }
+  .addr-table .more:hover { text-decoration: underline; }
+
+  /* ── Filter chips (Nansen Wallet/Chain/token/protocol/chain/address) */
+  .filter-pill .caret { margin-left: 4px; color: var(--text-mute); font-size: 9px; }
+  .filter-pill.add-filter { color: var(--text-dim); }
+  .filter-pill.selected { background: rgba(78,197,255,0.12); border-color: rgba(78,197,255,0.4); color: var(--accent); }
+
+  /* ── Allocation view tabs (Address/Protocol/Chain/Token/Risk) ───── */
+  .alloc-tabs {
+    display: flex; gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .alloc-tab {
+    padding: 9px 14px; font-size: 12.5px; font-weight: 500;
+    color: var(--text-dim); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .alloc-tab:hover { color: var(--text); }
+  .alloc-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── Risk Profile stacked bars ─────────────────────────────────── */
+  .risk-bars { padding: 8px 4px; }
+  .risk-row {
+    display: grid; grid-template-columns: 110px 1fr 60px; gap: 12px;
+    align-items: center; padding: 6px 0;
+  }
+  .risk-row .risk-lbl { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 7px; }
+  .risk-row .risk-lbl .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .risk-row .risk-bar {
+    height: 6px; background: var(--surface-hi); border-radius: 3px; overflow: hidden;
+  }
+  .risk-row .risk-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .risk-row .risk-pct { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); text-align: right; }
+  .risk-foot { font-size: 11px; color: var(--text-mute); margin: 14px 4px 4px; line-height: 1.5; }
+
+  /* ── Gainers & Losers widget + HEAT MAP ────────────────────────── */
+  .gainers-panel { margin-top: 20px; }
+  .gainers-panel .delta-sub { color: var(--text-mute); font-weight: 400; font-size: 11px; margin-left: 6px; }
+  .gl-list { padding: 4px 0; }
+  .gl-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 4px; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12px;
+  }
+  .gl-row:last-child { border-bottom: none; }
+  .gl-row .gl-tok { font-weight: 500; }
+  .gl-row .gl-amt { font-size: 11.5px; }
+  .gl-row.pos .gl-amt { color: var(--positive); }
+  .gl-row.neg .gl-amt { color: var(--negative); }
+
+  /* ── My Addresses panel — the UI-002 surface ─────────────────────── */
+  .wallets {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; margin-bottom: 20px;
+    position: relative;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .wallets.glow {
+    border-color: rgba(78, 197, 255, 0.4);
+    box-shadow: 0 0 0 1px rgba(78, 197, 255, 0.3), 0 8px 28px -10px rgba(78, 197, 255, 0.3);
+  }
+  .wallets-h {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .wallets-h h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .wallets-h .sub { font-size: 12px; color: var(--text-dim); }
+  .wallets-h .count-chip {
+    display: inline-flex; padding: 3px 8px; border-radius: 5px;
+    background: var(--surface-hi); color: var(--text);
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    margin-left: 8px;
+  }
+  .wallets .privacy {
+    font-size: 11px; color: var(--text-mute); margin: 0 0 12px; line-height: 1.5;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wallets .privacy .ic { color: var(--positive); }
+
+  /* ── My Addresses — collapse/expand + selection count ─────────── */
+  .wallets-h-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .collapse-toggle {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-mute); cursor: pointer;
+    width: 30px; height: 30px; border-radius: 8px;
+    font-size: 14px; display: inline-flex; align-items: center; justify-content: center;
+    transition: color 0.12s ease, border-color 0.12s ease, transform 0.25s ease, background 0.12s ease;
+  }
+  .collapse-toggle:hover { color: var(--text); border-color: var(--border-hi); background: var(--surface-2); }
+  .wallets.collapsed .collapse-toggle { transform: rotate(-90deg); }
+  .wallets-body {
+    overflow: hidden;
+    max-height: 1800px; opacity: 1;
+    transition: max-height 0.28s ease, opacity 0.2s ease;
+  }
+  .wallets.collapsed .wallets-body { max-height: 0; opacity: 0; pointer-events: none; }
+  .count-chip .sel-suffix { color: var(--accent); margin-left: 4px; font-weight: 500; }
+
+  /* ── Maximum-reached notice (shown instead of add form at MAX) ─ */
+  .max-notice {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px; margin-bottom: 14px;
+    background: rgba(251, 191, 36, 0.08); color: var(--warn);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: 10px; font-size: 12px;
+  }
+  .max-notice[hidden] { display: none; }
+  .max-notice .ic { font-size: 16px; }
+  .max-notice strong { color: var(--text); font-weight: 600; }
+
+  .wallet-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+  .wallet-row {
+    display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: opacity 0.18s ease, border-color 0.12s ease;
+  }
+  .wallet-row.deselected { opacity: 0.45; border-color: var(--border); }
+  .wallet-row .addr-check {
+    width: 14px; height: 14px; flex-shrink: 0;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background: var(--bg-2); border: 1px solid var(--border-hi);
+    border-radius: 3px; cursor: pointer; margin: 0;
+    position: relative; transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .wallet-row .addr-check:hover { border-color: var(--accent); }
+  .wallet-row .addr-check:checked {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .wallet-row .addr-check:checked::after {
+    content: ''; position: absolute;
+    left: 3px; top: 0px;
+    width: 4px; height: 8px;
+    border: solid #04111a; border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .wallet-row .addr-check:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .wallet-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--positive); box-shadow: 0 0 8px rgba(52,211,153,0.4); transition: background 0.18s ease, box-shadow 0.18s ease; }
+  .wallet-row.deselected .dot { background: var(--text-mute); box-shadow: none; }
+  .wallet-row .main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .wallet-row .label-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .wallet-row .label { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wallet-row .addr { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wallet-row .actions { display: flex; gap: 2px; }
+  .wallet-row .ic-btn {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: var(--text-mute); cursor: pointer;
+    border-radius: 6px; font-size: 14px; transition: all 0.12s ease;
+  }
+  .wallet-row .ic-btn:hover { background: var(--surface-hi); color: var(--text); }
+  .wallet-row .ic-btn.copied { color: var(--positive); }
+  .wallet-row .ic-btn.danger:hover { color: var(--negative); }
+
+  .empty-state {
+    padding: 22px 12px; text-align: center;
+    border: 1px dashed var(--border-hi); border-radius: 10px;
+    margin-bottom: 14px;
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .empty-state .ic { font-size: 22px; color: var(--text-mute); margin-bottom: 6px; display: block; }
+  .empty-state .msg { font-size: 12.5px; color: var(--text-dim); }
+
+  /* ── Add form (EVM / Stellar chain picker + address + label + Add) ── */
+  .form-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .form-meta .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-mute); font-weight: 600;
+  }
+  .form-meta .slots { font-size: 11px; color: var(--text-mute); font-family: var(--mono); }
+  .form-grid {
+    display: grid; grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 8px; align-items: center;
+  }
+  @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr 1fr; } .form-grid .submit { grid-column: 1 / -1; } }
+  .input, .select {
+    height: 38px; padding: 0 12px;
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--sans); font-size: 13px;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    width: 100%;
+  }
+  .input.mono { font-family: var(--mono); font-size: 12.5px; }
+  .input::placeholder { color: var(--text-mute); }
+  .input:focus, .select:focus {
+    outline: none;
+    border-color: rgba(78, 197, 255, 0.55);
+    box-shadow: 0 0 0 3px rgba(78, 197, 255, 0.15);
+  }
+  .input.invalid {
+    border-color: rgba(251, 191, 36, 0.55);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+  }
+  .select { appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%238b97a8' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+  }
+  .form-err { font-size: 11.5px; color: var(--warn); margin: 6px 0 0; line-height: 1.5; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 38px; padding: 0 14px;
+    border-radius: 8px; border: 1px solid var(--border-hi);
+    background: var(--surface-hi); color: var(--text);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; color: var(--text-mute); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #04111a; border-color: transparent; font-weight: 600;
+  }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 6px 18px -6px rgba(78, 197, 255, 0.5); }
+  .btn.sm { height: 32px; padding: 0 12px; font-size: 12px; }
+
+  /* ── Tooltip for cap-at-5 ───────────────────────────────────────── */
+  .tt-wrap { position: relative; }
+  .tt {
+    position: absolute; bottom: calc(100% + 8px); right: 0;
+    background: var(--bg-2); color: var(--text);
+    font-size: 11px; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid var(--border-hi); white-space: nowrap;
+    box-shadow: 0 8px 22px -10px rgba(0,0,0,0.6);
+    pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease; z-index: 50;
+  }
+  .tt::after {
+    content: ''; position: absolute; top: 100%; right: 14px;
+    border: 5px solid transparent; border-top-color: var(--bg-2);
+  }
+  .tt-wrap.show .tt { opacity: 1; transform: translateY(0); }
+
+  /* ── Toast ───────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface-hi); color: var(--text);
+    padding: 10px 16px; border-radius: 8px;
+    border: 1px solid var(--border-hi);
+    font-size: 13px; box-shadow: 0 12px 32px -12px rgba(0,0,0,0.7);
+    opacity: 0; pointer-events: none; z-index: 200;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Storage inspector (collapsible) ────────────────────────────── */
+  .inspector {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-dim);
+    max-height: 120px; overflow-y: auto; white-space: pre-wrap;
+    word-break: break-all; line-height: 1.5;
+  }
+  .inspector .key { color: var(--accent); }
+  .inspector .str { color: var(--positive); }
+  .inspector .empty { color: var(--text-mute); }
+
+  /* ── Side-rail AC checklist (right edge) ────────────────────────── */
+  .ac-rail {
+    position: fixed; right: 16px; top: 100px; width: 260px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px;
+    max-height: calc(100vh - 130px); overflow-y: auto;
+    box-shadow: 0 12px 32px -16px rgba(0,0,0,0.6);
+    z-index: 40;
+  }
+  @media (max-width: 1280px) { .ac-rail { display: none; } }
+  .ac-rail h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mute); margin: 0 0 10px; }
+  .ac-rail .list { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
+  .ac-rail .list li { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; line-height: 1.45; color: var(--text-dim); }
+  .ac-rail .list li .num { flex-shrink: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-2); color: var(--text-mute); border-radius: 4px; font-family: var(--mono); font-size: 10px; font-weight: 600; }
+  .ac-rail .list li.covered .num { background: rgba(52,211,153,0.18); color: var(--positive); }
+  .scenarios { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .scenarios .btn { height: auto; min-height: 38px; padding: 6px 8px; font-size: 11px; line-height: 1.25; text-align: center; white-space: normal; }
+
+  /* ── View-panel containers (Overview / Holdings / Transactions) ── */
+  .view-panel { margin-top: 20px; }
+  .view-panel[hidden] { display: none; }
+  .view-panel-title {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 18px 0 10px;
+  }
+  .view-panel-title h2 { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+  .view-panel-title .meta { font-size: 11px; color: var(--text-mute); font-family: var(--mono); }
+
+  /* ── Holdings: wallet breakdown cards (Lido / Balancer / Hyperliquid) ── */
+  .wallet-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .wallet-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .wallet-card .wc-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .wallet-card .wc-name { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .wallet-card .wc-name .wc-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .wallet-card .wc-val { font-size: 13px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+  .wallet-card .wc-th {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    gap: 8px; font-size: 10.5px; color: var(--text-mute);
+    padding: 6px 0 4px; border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .wallet-card .wc-row {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    gap: 8px; font-size: 12px; padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .wallet-card .wc-row:last-child { border-bottom: none; }
+  .wallet-card .wc-row .mono { font-family: var(--mono); color: var(--text); }
+  .wallet-card .wc-row .num { text-align: right; font-family: var(--mono); color: var(--text-dim); }
+
+  /* ── Holdings: tokens master table ── */
+  .tokens-master { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+  .tokens-master .t-left { min-width: 0; }
+  .tokens-master .t-right { display: flex; flex-direction: column; gap: 10px; }
+
+  .right-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .right-card .rc-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .right-card .rc-body { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; margin-bottom: 10px; }
+  .right-card .rc-cta {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    color: var(--accent); cursor: pointer; user-select: none;
+  }
+  .right-card .rc-cta:hover { text-decoration: underline; }
+
+  /* ── Transactions: filter row ── */
+  .tx-filter-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 10px 12px; margin-bottom: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .tx-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--text);
+    cursor: pointer;
+  }
+  .tx-filter .lbl { color: var(--text-mute); font-size: 10.5px; }
+  .tx-filter .val { font-family: var(--mono); color: var(--text); }
+  .tx-filter .caret { color: var(--text-mute); font-size: 9px; }
+  .tx-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--text-dim);
+    cursor: pointer;
+  }
+  .tx-toggle .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-mute); }
+  .tx-toggle.on .dot { background: var(--accent); }
+  .tx-toggle.on { color: var(--text); border-color: rgba(78,197,255,0.4); }
+  .tx-reset {
+    margin-left: auto; background: transparent; border: none;
+    color: var(--accent); font-size: 11.5px; cursor: pointer;
+  }
+  .tx-reset:hover { text-decoration: underline; }
+
+  /* ── Transactions: history table ── */
+  .tx-table th.act, .tx-table td.act { color: var(--text); font-weight: 500; }
+  .tx-table .from-cell { font-family: var(--mono); color: var(--text-dim); font-size: 11px; }
+  .tx-table .from-cell .from-tag {
+    display: inline-block; padding: 1px 6px; margin-right: 4px;
+    background: rgba(78,197,255,0.1); color: var(--accent);
+    border-radius: 3px; font-size: 10px; font-weight: 500;
+  }
+  .tx-table .time { color: var(--text-mute); font-size: 11.5px; }
+  .tx-table .det-btn {
+    background: var(--bg-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 3px 8px; font-size: 11px;
+    cursor: pointer;
+  }
+  .tx-table .det-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* ── Risk Alerts page ────────────────────────────────────────────── */
+  .severity-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 999px;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    border: 1px solid;
+  }
+  .severity-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .severity-badge.critical { background: rgba(248,113,113,0.12); color: var(--negative); border-color: rgba(248,113,113,0.35); }
+  .severity-badge.critical .dot { background: var(--negative); }
+  .severity-badge.warning  { background: rgba(251,191,36,0.12); color: var(--warn); border-color: rgba(251,191,36,0.35); }
+  .severity-badge.warning  .dot { background: var(--warn); }
+  .severity-badge.info     { background: rgba(78,197,255,0.12); color: var(--accent); border-color: rgba(78,197,255,0.35); }
+  .severity-badge.info     .dot { background: var(--accent); }
+  .severity-badge.silent   { background: rgba(139,151,168,0.10); color: var(--text-mute); border-color: rgba(139,151,168,0.30); }
+  .severity-badge.silent   .dot { background: var(--text-mute); }
+
+  .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 1100px) { .signal-grid { grid-template-columns: 1fr; } }
+  .signal-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+  }
+  .signal-card .signal-h {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .signal-card .signal-h h3 {
+    font-size: 14px; font-weight: 600; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .signal-card .signal-h h3 .ic { font-size: 14px; color: var(--accent); }
+  .signal-card .signal-cat {
+    font-size: 10px; color: var(--text-mute); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .signal-card .signal-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 6px 0; border-top: 1px dashed var(--border);
+    font-size: 12.5px;
+  }
+  .signal-card .signal-row:first-of-type { border-top: 0; }
+  .signal-card .signal-row .k { color: var(--text-mute); font-family: var(--mono); font-size: 11px; }
+  .signal-card .signal-row .v { font-family: var(--mono); font-size: 12.5px; color: var(--text); }
+  .signal-card .signal-row .v.fired { color: var(--negative); font-weight: 600; }
+  .signal-card .signal-row .v.warn  { color: var(--warn); font-weight: 600; }
+  .signal-card .signal-row .v.info  { color: var(--accent); font-weight: 600; }
+  .signal-card .signal-foot {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-mute); line-height: 1.5;
+  }
+  .util-bar {
+    display: grid; grid-template-columns: 80px 1fr 56px; gap: 8px;
+    align-items: center; padding: 5px 0; font-size: 12px;
+  }
+  .util-bar .util-name { color: var(--text); font-size: 12px; }
+  .util-bar .util-track {
+    height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;
+    overflow: hidden; position: relative;
+  }
+  .util-bar .util-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--positive), var(--accent));
+    border-radius: 4px;
+  }
+  .util-bar .util-fill.warn  { background: linear-gradient(90deg, var(--warn), #f97316); }
+  .util-bar .util-fill.crit  { background: linear-gradient(90deg, var(--negative), #b91c1c); }
+  .util-bar .util-pct {
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-dim);
+    text-align: right;
+  }
+  .pool-status-indicator {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 10px;
+    font-family: var(--mono); font-size: 13px;
+    background: rgba(52,211,153,0.08); color: var(--positive);
+    border: 1px solid rgba(52,211,153,0.25);
+  }
+  .pool-status-indicator.onice { background: rgba(251,191,36,0.08); color: var(--warn); border-color: rgba(251,191,36,0.25); }
+  .pool-status-indicator.frozen { background: rgba(248,113,113,0.10); color: var(--negative); border-color: rgba(248,113,113,0.30); }
+  .pool-status-indicator .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+  /* ── Agents page ────────────────────────────────────────────────── */
+  .agent-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; margin-bottom: 16px;
+  }
+  .agent-card .agent-h {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .agent-card .agent-h h3 {
+    font-size: 15px; font-weight: 600; margin: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .agent-card .agent-h h3 .ic { font-size: 18px; color: var(--accent); }
+  .agent-card .agent-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin-bottom: 12px; }
+  .agent-card .agent-meta {
+    display: flex; gap: 16px; font-size: 11.5px; color: var(--text-mute);
+    padding-top: 10px; border-top: 1px solid var(--border);
+  }
+  .agent-card .agent-meta span strong { color: var(--text-dim); font-weight: 500; }
+  .agent-card .agent-links { margin-top: 12px; display: flex; gap: 8px; }
+  .agent-card .agent-link {
+    padding: 6px 12px; border-radius: 8px; font-size: 12px;
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim);
+    cursor: pointer;
+  }
+  .agent-card .agent-link:hover { color: var(--text); border-color: var(--border-hi); }
+
+  /* ── Settings page ─────────────────────────────────────────────── */
+  .settings-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px; margin-bottom: 16px;
+  }
+  .settings-section h3 {
+    margin: 0 0 4px; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .settings-section h3 .ic { color: var(--accent); font-size: 16px; }
+  .settings-section .sub { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 0; border-top: 1px solid var(--border);
+  }
+  .settings-section .settings-row:first-of-type { border-top: 0; padding-top: 4px; }
+  .settings-row .label-block { flex: 1; min-width: 0; }
+  .settings-row .label-block .name { font-size: 13px; color: var(--text); font-weight: 500; }
+  .settings-row .label-block .hint { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
+  .settings-row .value-block { font-size: 12.5px; color: var(--text-dim); text-align: right; }
+  .settings-row .value-block code {
+    font-family: var(--mono); font-size: 11.5px;
+    background: var(--bg-2); padding: 2px 6px; border-radius: 4px;
+  }
+  .plan-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .plan-badge.free { background: rgba(148,163,184,0.12); color: var(--text-dim); }
+  .plan-badge.pro  { background: rgba(78,197,255,0.14); color: var(--accent); }
+  .plan-badge.x402 { background: rgba(52,211,153,0.14); color: var(--positive); }
+
+  /* ── Feedback page ─────────────────────────────────────────────── */
+  .feedback-notice {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: 12px;
+    background: rgba(78,197,255,0.06); border: 1px solid rgba(78,197,255,0.22);
+    margin-bottom: 16px;
+  }
+  .feedback-notice .ic { font-size: 18px; color: var(--accent); margin-top: 1px; }
+  .feedback-notice .body { flex: 1; }
+  .feedback-notice .body strong { color: var(--text); font-weight: 600; }
+  .feedback-notice .body p { margin: 4px 0 0; font-size: 12px; color: var(--text-dim); }
+  .feedback-notice .body a { color: var(--accent); text-decoration: none; }
+  .feedback-notice .body a:hover { text-decoration: underline; }
+  .feedback-form {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+  }
+  .feedback-form label.field {
+    display: block; margin-bottom: 16px;
+  }
+  .feedback-form label.field > .lbl {
+    display: block; font-size: 12px; color: var(--text-dim);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .feedback-form select,
+  .feedback-form input[type="text"],
+  .feedback-form input[type="email"],
+  .feedback-form textarea {
+    width: 100%; padding: 10px 12px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: inherit;
+    font-size: 13px; outline: none;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .feedback-form textarea { min-height: 140px; resize: vertical; line-height: 1.5; }
+  .feedback-form select:focus,
+  .feedback-form input:focus,
+  .feedback-form textarea:focus { border-color: var(--accent); background: var(--bg); }
+  .feedback-form .upload-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px;
+    background: var(--bg-2); border: 1px dashed var(--border);
+    font-size: 12px; color: var(--text-mute);
+  }
+  .feedback-form .upload-row .filename { color: var(--text-dim); font-family: var(--mono); }
+  .feedback-form .cta-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+  .feedback-advanced {
+    margin-top: 24px; padding: 22px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .feedback-advanced .adv-h {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .feedback-advanced .adv-h h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .feedback-advanced .locked-badge {
+    font-size: 10.5px; padding: 2px 8px; border-radius: 999px;
+    background: rgba(148,163,184,0.12); color: var(--text-mute);
+    font-weight: 500; letter-spacing: 0.04em;
+  }
+  .feedback-advanced ul { margin: 12px 0 0; padding-left: 18px; }
+  .feedback-advanced ul li { font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; }
+  .feedback-advanced .cta { margin-top: 14px; display: flex; gap: 10px; }
+
+  /* ── Docs page ──────────────────────────────────────────────────── */
+  .docs-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px; margin-top: 4px;
+  }
+  .docs-card {
+    display: block; padding: 18px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    text-decoration: none; color: inherit;
+    transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+  }
+  .docs-card:hover { border-color: var(--border-hi); background: var(--surface-hi); }
+  .docs-card .ic {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(78,197,255,0.10); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; margin-bottom: 10px;
+  }
+  .docs-card .name { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .docs-card .desc { font-size: 12px; color: var(--text-mute); line-height: 1.5; }
+
+  /* ── Protocols Tracked page (Nansen "Supported Protocols" pattern) ── */
+  .protocols-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .protocols-summary { grid-template-columns: repeat(2, 1fr); } }
+  .protocols-summary .kpi .value { font-size: 20px; }
+  .chain-block {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 14px;
+  }
+  .chain-block .chain-h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .chain-block .chain-name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chain-block .chain-name .chain-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+  .chain-block .chain-count {
+    font-family: var(--mono); font-size: 11px; color: var(--text-mute);
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--surface-hi);
+  }
+  .chain-block .chain-count strong { color: var(--text); font-weight: 600; margin-right: 3px; }
+  .chain-block .proto-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+  }
+  .proto-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 12.5px; color: var(--text);
+  }
+  .proto-chip .proto-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .proto-chip .proto-name { font-weight: 500; }
+  .proto-chip .proto-meta {
+    margin-left: auto; font-family: var(--mono);
+    font-size: 10.5px; color: var(--text-mute);
+  }
+
+  /* ── Docs page (simplified — link out to docs site) ──────────────── */
+  .docs-simple {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 32px 28px; text-align: center;
+  }
+  .docs-simple .ic { font-size: 32px; color: var(--accent); margin-bottom: 12px; display: block; }
+  .docs-simple h2 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+  .docs-simple p { font-size: 13px; color: var(--text-dim); margin: 0 0 18px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+  .docs-simple .btn { font-size: 13px; }
+
+  /* ── Settings page (minimal — 2 sections) ──────────────────────── */
+  .settings-empty-note {
+    padding: 14px 16px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 12px; color: var(--text-dim); line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .settings-empty-note .ic { color: var(--text-mute); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Feedback page (sign-in gate, no Gmail) ──────────────────────── */
+  .feedback-simple-cta {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 32px 28px; text-align: center;
+    margin-bottom: 16px;
+  }
+  .feedback-simple-cta .ic { font-size: 28px; color: var(--accent); margin-bottom: 10px; display: block; }
+  .feedback-simple-cta h2 { font-size: 17px; font-weight: 600; margin: 0 0 8px; }
+  .feedback-simple-cta p { font-size: 13px; color: var(--text-dim); margin: 0 0 18px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+  .feedback-simple-cta .btn-row { display: flex; gap: 10px; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ── Sidebar (Nansen nav) ──────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">O</span> <span class="brand-text">OctoPos <span style="font-size:10px;color:var(--text-mute);margin-left:4px;">Wireframe</span></span></div>
+
+    <div class="nav-section">Portfolio</div>
+    <div class="nav-item active" data-page="portfolio"><span class="ic">▣</span> <span>Portfolio</span></div>
+    <div class="nav-item" data-page="risk-alerts"><span class="ic">⚠</span> <span>Risk Alerts</span></div>
+    <div class="nav-item" data-page="agents"><span class="ic">◈</span> <span>Agents</span></div>
+
+    <div class="nav-section">Developer</div>
+    <div class="nav-item"><span class="ic">{ }</span> <span>OctoPos API</span></div>
+
+    <div class="sidebar-footer">
+      <div class="nav-item" data-page="docs"><span class="ic">⌃</span> <span>Docs</span></div>
+      <div class="nav-item" data-page="feedback"><span class="ic">✎</span> <span>Feedback</span></div>
+      <div class="nav-item" data-page="settings"><span class="ic">⚙</span> <span>Settings</span></div>
+    </div>
+
+    <button class="collapse-toggle-sidebar" id="collapse-toggle-sidebar" aria-label="Collapse menu" title="Collapse menu (⌘B)">
+      <span class="ic">‹</span><span class="lbl">Collapse menu</span><kbd>⌘B</kbd>
+    </button>
+  </aside>
+
+  <!-- ── Main column ──────────────────────────────────────────────── -->
+  <div>
+    <header class="topbar">
+      <div class="left">
+        <div class="crumbs">Portfolio · <strong>Overview</strong></div>
+      </div>
+      <div class="right">
+        <span class="change-pill" id="change-pill">↑ +2.41% (24H)</span>
+        <span class="pro-badge">PRO</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="page-portfolio" class="page">
+      <!-- Page head + sub tabs -->
+      <div class="page-head">
+        <h1>Portfolio</h1>
+        <div class="sub-tabs">
+          <div class="sub-tab active" data-protocols-tab>Protocols Tracked</div>
+          <div class="sub-tab" data-my-portfolio-tab>My Portfolio</div>
+        </div>
+      </div>
+
+      <!-- ── Protocols Tracked view (default, Nansen "Supported Protocols" pattern) ── -->
+      <div id="protocols-tracked-content">
+        <div style="font-size:12.5px; color:var(--text-dim); margin-bottom: 18px; max-width: 720px; line-height: 1.55;">
+          Every protocol OctoPos currently tracks. Positions in these protocols appear in your My Portfolio view once you add an address. New adapters ship via cloudflare deploys — no app update required.
+        </div>
+
+        <div class="protocols-summary">
+          <div class="kpi"><div class="label">Protocols total</div><div class="value accent" id="proto-total">31</div><div class="delta">across all chains</div></div>
+          <div class="kpi"><div class="label">EVM chains</div><div class="value" id="proto-chains">17</div><div class="delta">17 adapters live</div></div>
+          <div class="kpi"><div class="label">Stellar protocols</div><div class="value" id="proto-stellar">9</div><div class="delta">Soroban + Classic</div></div>
+          <div class="kpi"><div class="label">Last deploy</div><div class="value" id="proto-deploy">2h ago</div><div class="delta">apps/api + apps/evm-api</div></div>
+        </div>
+
+        <div id="protocols-chain-list"></div>
+      </div>
+
+      <!-- ── My Portfolio content (hidden by default until "My Portfolio" sub-tab is clicked) ── -->
+      <div id="portfolio-content" hidden>
+
+      <!-- Sub-tabs (Overview / Holdings / Transactions) — Nansen pattern -->
+      <div class="sub-tabs" id="view-tabs" style="margin-bottom: 16px;">
+        <div class="sub-tab active" data-view="overview">Overview</div>
+        <div class="sub-tab" data-view="holdings">Holdings</div>
+        <div class="sub-tab" data-view="transactions">Transactions</div>
+      </div>
+
+      <!-- Filter row (Nansen-style: Wallet / Chain / token / protocol / chain / address) -->
+      <div class="filter-row" id="filter-row">
+        <div class="filter-pill" data-filter="wallet"><span class="ic">⌕</span> Wallet <span class="caret">▾</span></div>
+        <div class="filter-pill" data-filter="chain"><span class="ic">⌕</span> Chain <span class="caret">▾</span></div>
+        <div class="filter-pill" data-filter="token"><span class="ic">⌕</span> token <span class="caret">▾</span></div>
+        <div class="filter-pill" data-filter="protocol"><span class="ic">⌕</span> protocol <span class="caret">▾</span></div>
+        <div class="filter-pill" data-filter="chain2"><span class="ic">⌕</span> chain <span class="caret">▾</span></div>
+        <div class="filter-pill" data-filter="address"><span class="ic">⌕</span> address <span class="caret">▾</span></div>
+        <div class="filter-pill add-filter"><span class="ic">+</span> Add filter</div>
+      </div>
+
+      <!-- KPI strip — mirrors Nansen's Portfolio top tiles -->
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi">
+          <div class="label">Net Worth</div>
+          <div class="value accent" id="kpi-net">$0.00</div>
+          <div class="delta" id="kpi-net-d">+0.00% (24H)</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Claimable</div>
+          <div class="value" id="kpi-claim">$0.00</div>
+          <div class="delta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Total Assets</div>
+          <div class="value" id="kpi-assets">$0.00</div>
+          <div class="delta" id="kpi-assets-d">+0.00%</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Total Liabilities</div>
+          <div class="value" id="kpi-liab">$0.00</div>
+          <div class="delta neg">-0.00%</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Addresses tracked</div>
+          <div class="value" id="kpi-wallets">0</div>
+          <div class="delta">of 5 max</div>
+        </div>
+      </div>
+
+      <!-- ── My Addresses panel — UI-002 surface ────────────────────── -->
+      <section class="wallets" id="wallets-panel" data-testid="my-addresses-panel">
+        <div class="wallets-h">
+          <div>
+            <h2>
+              My Addresses
+              <span class="count-chip" id="count-chip">0/5</span>
+            </h2>
+            <div class="sub">Saved locally — never sent to our servers. Up to 5 addresses, EVM or Stellar.</div>
+          </div>
+          <div class="wallets-h-actions">
+            <button class="collapse-toggle" id="collapse-toggle" aria-label="Collapse panel" aria-expanded="true" title="Collapse panel">▾</button>
+          </div>
+        </div>
+
+        <div class="wallets-body" id="wallets-body">
+        <p class="privacy"><span class="ic">🔒</span> Address list stays in <code style="font-family:var(--mono);font-size:10.5px;background:var(--bg-2);padding:1px 4px;border-radius:3px;">localStorage</code> — only addresses are sent to <code style="font-family:var(--mono);font-size:10.5px;background:var(--bg-2);padding:1px 4px;border-radius:3px;">/v1/portfolio</code>.</p>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="empty-state" hidden>
+          <span class="ic">⌬</span>
+          <div class="msg">Add your first address to get started.</div>
+        </div>
+
+        <!-- Address list -->
+        <ul class="wallet-list" id="wallet-list" hidden></ul>
+
+        <!-- Add form (hidden when at MAX = 5) -->
+        <div id="add-form-wrap">
+        <form id="add-form" autocomplete="off">
+          <div class="form-meta">
+            <span class="label">Add address</span>
+            <span class="slots" id="slots-info">5 slots left</span>
+          </div>
+          <div class="form-grid">
+            <select class="select" id="chain-select" aria-label="Address chain">
+              <option value="evm">EVM (0x…)</option>
+              <option value="stellar">Stellar (G…)</option>
+            </select>
+            <input class="input mono" id="address-input" type="text" spellcheck="false"
+                   autocorrect="off" autocapitalize="off"
+                   placeholder="0x… (EVM address)" aria-label="Address" />
+            <input class="input" id="label-input" type="text" maxlength="48"
+                   placeholder="Label (optional)" aria-label="Label (optional)" />
+            <div class="tt-wrap" id="add-tip-wrap">
+              <button type="submit" class="btn" id="add-submit" disabled
+                      title="Enter an address to add">Add</button>
+            </div>
+          </div>
+          <p class="form-err" id="format-error" hidden></p>
+          <p class="form-err" id="submit-error" hidden></p>
+        </form>
+        </div><!-- /#add-form-wrap -->
+
+        <!-- Maximum reached notice (shown when wallets.length >= MAX) -->
+        <div class="max-notice" id="max-notice" hidden>
+          <span class="ic">⌛</span>
+          <span class="msg">Maximum of <strong>5 addresses</strong> reached. Remove one above to add a different address.</span>
+        </div>
+
+        <!-- Storage inspector (collapsible strip) -->
+        <details style="margin-top: 14px;">
+          <summary style="font-size: 11px; color: var(--text-mute); cursor: pointer; list-style: none;">
+            <span style="color: var(--accent);">▸</span> localStorage · <code style="font-family:var(--mono);color:var(--accent);">octopos_wallets</code>
+          </summary>
+          <div class="inspector" id="storage-inspector" style="margin-top: 8px;">
+            <span class="empty">(empty — add an address to populate)</span>
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 6px;">
+            <button class="btn sm" id="reload-btn" style="flex:1;">Reload (simulate refresh)</button>
+            <button class="btn sm" id="wipe-btn" style="flex:1;">Wipe storage</button>
+          </div>
+        </details>
+        </div><!-- /.wallets-body -->
+      </section>
+
+      <!-- ── Overview view panel (default) — allocation + gainers & losers ── -->
+      <div id="view-overview" class="view-panel">
+
+      <!-- ── Allocation view switcher (4 modes — Risk moved to Risk Alerts page) ─ -->
+      <div class="alloc-tabs" id="alloc-tabs">
+        <div class="alloc-tab active" data-alloc="address">Address</div>
+        <div class="alloc-tab" data-alloc="protocol">Protocol</div>
+        <div class="alloc-tab" data-alloc="chain">Chain</div>
+        <div class="alloc-tab" data-alloc="token">Token</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel" id="alloc-panel">
+          <div class="panel-h">
+            <h2 id="alloc-title">Address Allocation</h2>
+            <span class="hint" id="alloc-hint">No addresses</span>
+          </div>
+          <div class="donut-wrap" id="alloc-donut-wrap">
+            <div class="donut" id="donut">
+              <svg viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+              </svg>
+              <div class="donut-center">
+                <div class="v" id="donut-total">$0.00</div>
+                <div class="k">Total</div>
+              </div>
+            </div>
+            <div class="donut-legend" id="donut-legend">
+              <div style="font-size: 12px; color: var(--text-mute); text-align: center; padding: 20px 0;">
+                Add an address to see the allocation chart.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" id="break-panel">
+          <div class="panel-h">
+            <h2 id="break-title">Address Breakdown</h2>
+            <span class="hint" id="break-hint">Pro feature</span>
+          </div>
+          <div class="table-wrap">
+            <!-- ADDRESS table (default) -->
+            <table class="addr-table" id="tbl-address">
+              <thead>
+                <tr>
+                  <th>Address</th>
+                  <th>Chain</th>
+                  <th class="num">Share</th>
+                  <th class="num"># Tokens</th>
+                  <th class="num"># Protocols</th>
+                  <th class="num">Value</th>
+                </tr>
+              </thead>
+              <tbody id="addr-tbody">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-mute); padding: 24px;">No addresses added yet.</td></tr>
+              </tbody>
+            </table>
+            <!-- PROTOCOL table -->
+            <table class="addr-table" id="tbl-protocol" hidden>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Chain</th>
+                  <th class="num">Share</th>
+                  <th class="num">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Hyperliquid</td><td><span class="chain-badge">Wallet</span></td><td class="num">100%</td><td class="num">$357.15</td></tr>
+                <tr><td>Aave v3</td><td><span class="chain-badge">Ethereum</span></td><td class="num">42.10%</td><td class="num">$163.55</td></tr>
+                <tr><td>Uniswap v3</td><td><span class="chain-badge">Ethereum</span></td><td class="num">28.04%</td><td class="num">$108.97</td></tr>
+                <tr><td>Morpho</td><td><span class="chain-badge">Base</span></td><td class="num">14.50%</td><td class="num">$56.34</td></tr>
+                <tr><td>Blend</td><td><span class="chain-badge stellar">Stellar</span></td><td class="num">8.20%</td><td class="num">$31.86</td></tr>
+                <tr><td>Soroswap</td><td><span class="chain-badge stellar">Stellar</span></td><td class="num">5.10%</td><td class="num">$19.82</td></tr>
+                <tr><td>Other</td><td><span class="chain-badge">Mixed</span></td><td class="num">2.06%</td><td class="num">$8.01</td></tr>
+              </tbody>
+            </table>
+            <!-- CHAIN table -->
+            <table class="addr-table" id="tbl-chain" hidden>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th class="num">Share</th>
+                  <th class="num"># Tokens</th>
+                  <th class="num"># Protocols</th>
+                  <th class="num">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><span class="chain-badge">Ethereum</span></td><td class="num">79.09%</td><td class="num">12</td><td class="num">5</td><td class="num">$306.91</td></tr>
+                <tr><td><span class="chain-badge">Base</span></td><td class="num">6.97%</td><td class="num">4</td><td class="num">2</td><td class="num">$27.05</td></tr>
+                <tr><td><span class="chain-badge">Polygon</span></td><td class="num">6.32%</td><td class="num">3</td><td class="num">1</td><td class="num">$24.53</td></tr>
+                <tr><td><span class="chain-badge">HyperEVM</span></td><td class="num">4.97%</td><td class="num">2</td><td class="num">1</td><td class="num">$19.29</td></tr>
+                <tr><td><span class="chain-badge">Arbitrum</span></td><td class="num">1.59%</td><td class="num">2</td><td class="num">1</td><td class="num">$6.17</td></tr>
+                <tr><td><span class="chain-badge">Other</span></td><td class="num">1.06%</td><td class="num">1</td><td class="num">1</td><td class="num">$4.13</td></tr>
+              </tbody>
+            </table>
+            <!-- TOKEN table -->
+            <table class="addr-table" id="tbl-token" hidden>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th class="num">Price</th>
+                  <th class="num">Amount</th>
+                  <th class="num">Share</th>
+                  <th class="num">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>USDC</td><td class="num">$1.0000</td><td class="num">142.50</td><td class="num">39.89%</td><td class="num">$142.50</td></tr>
+                <tr><td>PENDLE</td><td class="num">$4.06</td><td class="num">12.42</td><td class="num">14.14%</td><td class="num">$50.43</td></tr>
+                <tr><td>WBTC</td><td class="num">$61,420</td><td class="num">0.00042</td><td class="num">7.24%</td><td class="num">$25.80</td></tr>
+                <tr><td>MORPHO</td><td class="num">$0.51</td><td class="num">36.10</td><td class="num">5.15%</td><td class="num">$18.41</td></tr>
+                <tr><td>AAVE</td><td class="num">$98.40</td><td class="num">0.15</td><td class="num">4.14%</td><td class="num">$14.76</td></tr>
+                <tr><td>HYPE</td><td class="num">$22.30</td><td class="num">0.50</td><td class="num">3.13%</td><td class="num">$11.15</td></tr>
+                <tr><td>PEPE</td><td class="num">$0.0₄667</td><td class="num">14.2M</td><td class="num">2.97%</td><td class="num">$10.59</td></tr>
+                <tr><td>BASED</td><td class="num">$0.0₄578</td><td class="num">8.4M</td><td class="num">1.36%</td><td class="num">$4.86</td></tr>
+                <tr><td>Other</td><td class="num">—</td><td class="num">—</td><td class="num">21.98%</td><td class="num">$78.65</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Gainers & Losers (Nansen widget) ─────────────────────────── -->
+      <div class="panel gainers-panel">
+        <div class="panel-h">
+          <h2>Gainers &amp; Losers <span class="delta-sub">(24H)</span></h2>
+        </div>
+        <div class="gl-list" id="gl-list">
+          <div class="gl-row neg"><div class="gl-tok">PENDLE</div><div class="gl-amt">-$1.92</div></div>
+          <div class="gl-row pos"><div class="gl-tok">USDC</div><div class="gl-amt">+$0.0₃645</div></div>
+          <div class="gl-row neg"><div class="gl-tok">WBTC</div><div class="gl-amt">-$1.68</div></div>
+          <div class="gl-row neg"><div class="gl-tok">AAVE</div><div class="gl-amt">-$0.6477</div></div>
+          <div class="gl-row neg"><div class="gl-tok">HYPE</div><div class="gl-amt">-$0.2235</div></div>
+          <div class="gl-row neg"><div class="gl-tok">MORPHO</div><div class="gl-amt">-$0.0368</div></div>
+          <div class="gl-row pos"><div class="gl-tok">USDC</div><div class="gl-amt">+$0.0061</div></div>
+          <div class="gl-row pos"><div class="gl-tok">PEPE</div><div class="gl-amt">+$0.0034</div></div>
+          <div class="gl-row pos"><div class="gl-tok">BASED</div><div class="gl-amt">+$0.0₄578</div></div>
+          <div class="gl-row pos"><div class="gl-tok">other</div><div class="gl-amt">+$0.0₆318</div></div>
+        </div>
+      </div>
+
+      </div><!-- /#view-overview -->
+
+      <!-- ── Holdings view panel ────────────────────────────────────────────── -->
+      <div id="view-holdings" class="view-panel" hidden>
+
+        <div class="view-panel-title">
+          <h2>Holdings</h2>
+          <span class="meta">8 positions · $25,003.55 · wallet 0xe2c…b0266 · Custom tokens: Add missing tokens</span>
+        </div>
+
+        <!-- Wallet breakdown cards (Lido / Aave V3 / Uniswap V3) -->
+        <div class="wallet-cards">
+
+          <div class="wallet-card">
+            <div class="wc-h">
+              <div class="wc-name"><span class="wc-dot" style="background:#22c55e"></span> Lido</div>
+              <div class="wc-val">$890.08</div>
+            </div>
+            <div class="wc-th"><span>Token</span><span>Amount</span><span>Price</span><span>Value</span></div>
+            <div class="wc-row"><span class="mono">WSTETH</span><span class="num">0.3180</span><span class="num">$2,799.00</span><span class="num">$890.08</span></div>
+          </div>
+
+          <div class="wallet-card">
+            <div class="wc-h">
+              <div class="wc-name"><span class="wc-dot" style="background:#3b82f6"></span> Aave V3</div>
+              <div class="wc-val">$1,243.85</div>
+            </div>
+            <div class="wc-th"><span>Token</span><span>Amount</span><span>APY</span><span>Value</span></div>
+            <div class="wc-row"><span class="mono">USDC (supply)</span><span class="num">1,243.85</span><span class="num">3.42%</span><span class="num">$1,243.85</span></div>
+          </div>
+
+          <div class="wallet-card">
+            <div class="wc-h">
+              <div class="wc-name"><span class="wc-dot" style="background:#a855f7"></span> Uniswap V3</div>
+              <div class="wc-val">$621.32</div>
+            </div>
+            <div class="wc-th"><span>Pool</span><span>Range</span><span></span><span>Value</span></div>
+            <div class="wc-row"><span class="mono">WETH · USDC 0.05%</span><span class="num">$2.4K – $3.0K</span><span class="num"></span><span class="num">$621.32</span></div>
+          </div>
+
+        </div>
+
+        <!-- Tokens master table + right rail cards -->
+        <div class="tokens-master">
+
+          <div class="t-left">
+            <div class="panel">
+              <div class="panel-h">
+                <h2>Tokens</h2>
+                <span class="hint">All chains · sorted by value</span>
+              </div>
+              <div class="table-wrap">
+                <table class="addr-table">
+                  <thead>
+                    <tr>
+                      <th>Token</th>
+                      <th class="num">Portfolio %</th>
+                      <th class="num">24H</th>
+                      <th class="num">Amount</th>
+                      <th class="num">Price</th>
+                      <th class="num">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#22c55e"></span><span class="addr">USDC</span></div></td><td class="num">56.57%</td><td class="num">0.00%</td><td class="num">14,143.21</td><td class="num">$1.00</td><td class="num">$14,143.21</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#627eea"></span><span class="addr">WETH</span></div></td><td class="num">19.28%</td><td class="num pos">+2.45%</td><td class="num">1.6502</td><td class="num">$2,921.45</td><td class="num">$4,820.18</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#f59e0b"></span><span class="addr">PENDLE</span></div></td><td class="num">7.36%</td><td class="num pos">+8.12%</td><td class="num">192.50</td><td class="num">$9.56</td><td class="num">$1,840.30</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#28a0f0"></span><span class="addr">ARB</span></div></td><td class="num">4.96%</td><td class="num neg">-1.34%</td><td class="num">1,450.32</td><td class="num">$0.855</td><td class="num">$1,239.91</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#22c55e"></span><span class="addr">WSTETH</span></div></td><td class="num">3.56%</td><td class="num pos">+1.87%</td><td class="num">0.3180</td><td class="num">$2,799.00</td><td class="num">$890.08</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#22c55e"></span><span class="addr">PEPE</span></div></td><td class="num">2.08%</td><td class="num neg">-5.62%</td><td class="num">45,200,000</td><td class="num">$0.0000115</td><td class="num">$519.80</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#ff007a"></span><span class="addr">UNI</span></div></td><td class="num">1.24%</td><td class="num pos">+0.78%</td><td class="num">41.85</td><td class="num">$7.41</td><td class="num">$310.11</td></tr>
+                    <tr><td><div class="addr-cell"><span class="dot" style="background:#2a5ada"></span><span class="addr">LINK</span></div></td><td class="num">0.96%</td><td class="num pos">+3.21%</td><td class="num">16.92</td><td class="num">$14.18</td><td class="num">$239.96</td></tr>
+                    <tr><td colspan="6" style="text-align:center; color:var(--text-mute); font-size:11px; padding:14px;">Tokens with &lt;1% in value are hidden. <a href="#" style="color:var(--accent); text-decoration:none;">Show All</a></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="t-right">
+            <div class="right-card">
+              <div class="rc-title">Can't Find a Token?</div>
+              <div class="rc-body">Add token manually to track your portfolio value more accurately.</div>
+              <span class="rc-cta">+ Add token</span>
+            </div>
+            <div class="right-card">
+              <div class="rc-title">Analyse PnL</div>
+              <div class="rc-body">Analyse your PnL statistics and track how profitable your different investments have been.</div>
+              <span class="rc-cta">Open PnL →</span>
+            </div>
+            <div class="right-card">
+              <div class="rc-title">Browse Transactions</div>
+              <div class="rc-body">Our new transactions view lets you easily browse and filter through all your transactions.</div>
+              <span class="rc-cta">Open Transactions →</span>
+            </div>
+            <div class="right-card">
+              <div class="rc-title">Get Token Insights</div>
+              <div class="rc-body">See how your tokens are doing with onchain data on buys/sells and Smart Money / CEX Flows.</div>
+              <span class="rc-cta">View insights →</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div><!-- /#view-holdings -->
+
+      <!-- ── Transactions view panel ────────────────────────────────────────── -->
+      <div id="view-transactions" class="view-panel" hidden>
+
+        <div class="view-panel-title">
+          <h2>Transactions</h2>
+          <span class="meta">13 on-chain events · wallet 0xe2c…b0266 · last 60 days · sorted by time</span>
+        </div>
+
+        <!-- Filter bar (Chain / Value / Suspicious / Heatmap) -->
+        <div class="tx-filter-bar">
+          <div class="tx-filter"><span class="lbl">Wallet</span> <span class="val">0xe2c…b0266</span> <span class="caret">▾</span></div>
+          <div class="tx-filter"><span class="lbl">Chain</span> <span class="val">All Chains</span> <span class="caret">▾</span></div>
+          <div class="tx-filter"><span class="lbl">Value ($):</span> <span class="val">≥ 0.1</span> <span class="caret">▾</span></div>
+          <div class="tx-toggle"><span class="dot"></span> Suspicious Filter</div>
+          <div class="tx-toggle"><span class="dot"></span> Show Heatmap</div>
+          <button class="tx-reset">Reset Filters</button>
+        </div>
+
+        <!-- Transactions history table -->
+        <div class="panel">
+          <div class="table-wrap">
+            <table class="addr-table tx-table">
+              <thead>
+                <tr>
+                  <th>Chain</th>
+                  <th>Action</th>
+                  <th>From</th>
+                  <th class="num">Amount</th>
+                  <th>Token</th>
+                  <th class="num">Value</th>
+                  <th>Time</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Exectransaction</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xf083bb]</span></td>
+                  <td class="num">-100.00</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$99.98</td>
+                  <td class="time">13d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transfer</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-12.04K</td>
+                  <td>USDT</td>
+                  <td class="num neg">-$12.02K</td>
+                  <td class="time">21d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transfer</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-10.00K</td>
+                  <td>USDT</td>
+                  <td class="num neg">-$9.99K</td>
+                  <td class="time">21d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Aggregate3value</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>Token Millionaire [0xf833af]</span></td>
+                  <td class="num">12.07K</td>
+                  <td>USDT</td>
+                  <td class="num pos">$12.06K</td>
+                  <td class="time">21d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Aggregate3value</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>Token Millionaire [0xf833af]</span></td>
+                  <td class="num">9.97K</td>
+                  <td>USDT</td>
+                  <td class="num pos">$9.95K</td>
+                  <td class="time">21d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transfer</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-10.00</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$10.00</td>
+                  <td class="time">31d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Sent</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-10.00</td>
+                  <td>—</td>
+                  <td class="num neg">-$0.925</td>
+                  <td class="time">31d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transfer</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-10.00</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$10.00</td>
+                  <td class="time">31d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transfer</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-5.00</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$5.00</td>
+                  <td class="time">31d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Transferfrom</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>Token Millionaire [0xf70da9]</span></td>
+                  <td class="num">39.61</td>
+                  <td>USDC</td>
+                  <td class="num pos">$39.60</td>
+                  <td class="time">36d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Execute</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-40.00</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$39.99</td>
+                  <td class="time">36d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Fillrelay</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>Token Millionaire [0x07ae85]</span></td>
+                  <td class="num">3.95</td>
+                  <td>USDC</td>
+                  <td class="num pos">$3.95</td>
+                  <td class="time">36d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="chain-badge">Ethereum</span></td>
+                  <td class="act">Bridge</td>
+                  <td><span class="from-cell"><span class="from-tag">From</span>[0xac8249]</span></td>
+                  <td class="num">-3.99</td>
+                  <td>USDC</td>
+                  <td class="num neg">-$3.99</td>
+                  <td class="time">36d ago</td>
+                  <td><button class="det-btn">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /#view-transactions -->
+
+      </div><!-- /#portfolio-content -->
+
+      </section><!-- /#page-portfolio -->
+
+      <!-- ── Risk Alerts page — Blend protocol risk monitoring signals ─── -->
+      <section id="page-risk-alerts" class="page" hidden>
+        <div class="page-head">
+          <h1>Risk Alerts</h1>
+          <div class="sub-tabs" id="severity-tabs">
+            <div class="sub-tab active" data-severity="all">All <span style="color:var(--text-mute);margin-left:4px;">4</span></div>
+            <div class="sub-tab" data-severity="critical">Critical <span style="color:var(--negative);margin-left:4px;">0</span></div>
+            <div class="sub-tab" data-severity="warning">Warning <span style="color:var(--warn);margin-left:4px;">1</span></div>
+            <div class="sub-tab" data-severity="info">Info <span style="color:var(--accent);margin-left:4px;">3</span></div>
+            <div class="sub-tab" data-severity="acknowledged">Acknowledged</div>
+          </div>
+        </div>
+
+        <p class="privacy" style="margin-bottom: 16px;">
+          <span class="ic">⌬</span>
+          Signals from <code style="font-family:var(--mono);font-size:10.5px;background:var(--bg-2);padding:1px 4px;border-radius:3px;">blend-risk-monitor</code> skill — Agent-20 evaluates 7 categories against OctoPos pool + Blend SDK data every 3 hours (60s for oracle).
+        </p>
+
+        <!-- Protocol selector + filter row -->
+        <div class="filter-row" id="risk-filter-row">
+          <div class="filter-pill protocol-pill" data-filter="protocol">
+            <span class="ic">⬡</span>
+            <span class="protocol-label">Protocol</span>
+            <select class="protocol-select" id="protocol-select" aria-label="Risk monitoring protocol">
+              <option value="blend-stellar" selected>Blend · Stellar</option>
+            </select>
+            <span class="caret">▾</span>
+          </div>
+          <div class="filter-pill" data-filter="pool"><span class="ic">⌕</span> Pool <span class="caret">▾</span></div>
+          <div class="filter-pill selected" data-filter="scope"><span class="ic">◉</span> Watched (3 pools)</div>
+          <div class="filter-pill" data-filter="cycle"><span class="ic">⟳</span> Cycle <span class="caret">▾</span></div>
+          <div class="filter-pill add-filter"><span class="ic">+</span> Add pool</div>
+        </div>
+
+        <!-- KPI strip — alert counts + cadence -->
+        <div class="kpi-row" id="risk-kpi-row">
+          <div class="kpi">
+            <div class="label">Critical</div>
+            <div class="value" style="color:var(--negative)">0</div>
+            <div class="delta" style="color:var(--text-mute)">no immediate-fire</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Warning</div>
+            <div class="value" style="color:var(--warn)">1</div>
+            <div class="delta">collateral_depeg · pending dispatch</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Info</div>
+            <div class="value" style="color:var(--accent)">3</div>
+            <div class="delta">routine cycle mentions</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Last Cycle</div>
+            <div class="value" style="font-size:16px">12m ago</div>
+            <div class="delta" style="color:var(--text-mute)">routine-2026-06-26T19:00Z</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Oracle Poll</div>
+            <div class="value" style="font-size:16px;color:var(--positive)">fresh</div>
+            <div class="delta">47s since last update</div>
+          </div>
+        </div>
+
+        <!-- Pool context strip -->
+        <div class="panel" style="margin-bottom: 24px;">
+          <div class="panel-h">
+            <h2>Watched Pool <span style="color:var(--text-mute);font-weight:400;font-size:12px;font-family:var(--mono);">CAJJZSGMMM3PD7N33TAPHGBUGTB43OC73HVIK2L2G6BNGGGYOSSYBXBD</span></h2>
+            <span class="hint">YieldBlox · Stellar mainnet</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div class="pool-status-indicator">
+              <span class="dot"></span> Pool Status: <strong style="margin-left:4px;">Active</strong>
+            </div>
+            <div style="font-size:12px;color:var(--text-mute);">
+              Last transition check: <span style="font-family:var(--mono);">19:18:42 UTC</span> · No transitions from Active.
+            </div>
+          </div>
+        </div>
+
+        <!-- Signal grid: 7 categories per blend-risk-monitor skill -->
+        <div class="signal-grid">
+
+          <!-- §3.1 Health Factor -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.1 · Health Factor</div>
+            <div class="signal-h">
+              <h3><span class="ic">♥</span> hf_warn / hf_alert / hf_emergency</h3>
+              <span class="severity-badge info"><span class="dot"></span>info</span>
+            </div>
+            <div class="signal-row"><span class="k">Measured HF</span><span class="v info">1.45</span></div>
+            <div class="signal-row"><span class="k">Position status</span><span class="v">supply-only (no debt)</span></div>
+            <div class="signal-row"><span class="k">Aggregate HF</span><span class="v">— (no borrowed positions)</span></div>
+            <div class="signal-row"><span class="k">Threshold ref</span><span class="v" style="color:var(--text-mute);font-size:11px;">architecture §3.1</span></div>
+            <div class="signal-foot">
+              Data: <code style="font-family:var(--mono);font-size:10.5px;">GET /api/v1/rms/risk/:poolAddress → healthFactor</code>. 2-consecutive-reading debounce applies to <code>warning</code>; immediate-fire on <code>critical</code>.
+            </div>
+          </div>
+
+          <!-- §3.2 Oracle Staleness -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.2 · Oracle Staleness</div>
+            <div class="signal-h">
+              <h3><span class="ic">⌚</span> oracle_stale_warn / _alert / _emergency</h3>
+              <span class="severity-badge info"><span class="dot"></span>info</span>
+            </div>
+            <div class="signal-row"><span class="k">Last price update</span><span class="v info">47 sec ago</span></div>
+            <div class="signal-row"><span class="k">Oracle contract</span><span class="v" style="font-size:11px;">Reflector · CAJ…</span></div>
+            <div class="signal-row"><span class="k">Poll cadence</span><span class="v">60s (event-loop)</span></div>
+            <div class="signal-row"><span class="k">Threshold ref</span><span class="v" style="color:var(--text-mute);font-size:11px;">architecture §3.2</span></div>
+            <div class="signal-foot">
+              Manipulation detection (price-spike, two-round pattern) lives in sibling <code>oracle-integrity-monitor</code> skill — staleness-only here.
+            </div>
+          </div>
+
+          <!-- §3.3 Pool Utilization (per reserve) -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.3 · Pool Utilization (per reserve)</div>
+            <div class="signal-h">
+              <h3><span class="ic">⌧</span> util_warn / _alert / _emergency</h3>
+              <span class="severity-badge info"><span class="dot"></span>info</span>
+            </div>
+            <div class="util-bar">
+              <div class="util-name">XLM</div>
+              <div class="util-track"><div class="util-fill" style="width:78%"></div></div>
+              <div class="util-pct">78.2%</div>
+            </div>
+            <div class="util-bar">
+              <div class="util-name">USDC</div>
+              <div class="util-track"><div class="util-fill" style="width:62%"></div></div>
+              <div class="util-pct">62.4%</div>
+            </div>
+            <div class="util-bar">
+              <div class="util-name">wETH</div>
+              <div class="util-track"><div class="util-fill warn" style="width:91%"></div></div>
+              <div class="util-pct" style="color:var(--warn)">91.0%</div>
+            </div>
+            <div class="signal-row"><span class="k">APR spike</span><span class="v">none (+12% wETH borrow APR, normal)</span></div>
+            <div class="signal-foot">
+              Data: <code>GET /api/v1/positions/summary → reserves[].totalDebt / (totalDebt + totalDeposit)</code>. Signal fires if ANY reserve crosses threshold.
+            </div>
+          </div>
+
+          <!-- §3.4 Pool Status enum -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.4 · Pool Status enum</div>
+            <div class="signal-h">
+              <h3><span class="ic">⚑</span> pool_on_ice / pool_frozen</h3>
+              <span class="severity-badge silent"><span class="dot"></span>silent (Active)</span>
+            </div>
+            <div class="signal-row"><span class="k">pool.config.status</span><span class="v" style="color:var(--positive)">Active</span></div>
+            <div class="signal-row"><span class="k">Last transition</span><span class="v">none observed</span></div>
+            <div class="signal-row"><span class="k">Enum mapping</span><span class="v" style="font-size:11px;">Active → silent · OnIce → warning · Frozen → critical</span></div>
+            <div class="signal-foot">
+              Any transition from <code>Active</code> to other state fires <strong style="color:var(--negative)">critical</strong> regardless of HF — treat as unknown protocol state until Security Council verification.
+            </div>
+          </div>
+
+          <!-- §3.5 Reserve Collateral Quality -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.5 · Reserve Collateral Quality</div>
+            <div class="signal-h">
+              <h3><span class="ic">◈</span> collateral_depeg / liquidity_low / concentration</h3>
+              <span class="severity-badge warning"><span class="dot"></span>warning</span>
+            </div>
+            <div class="signal-row"><span class="k">Fired signal</span><span class="v warn">collateral_depeg</span></div>
+            <div class="signal-row"><span class="k">Reserve</span><span class="v">wETH</span></div>
+            <div class="signal-row"><span class="k">Spot vs oracle</span><span class="v warn">−1.42% deviation</span></div>
+            <div class="signal-row"><span class="k">On-chain DEX quote</span><span class="v">Aquarius AMM</span></div>
+            <div class="signal-row"><span class="k">Aggregate TVL by reserve</span><span class="v">single_asset_concentration: info</span></div>
+            <div class="signal-foot">
+              Pending dispatch — Telegram WARN alert (cooldown applies). Architecture §3.5.
+            </div>
+          </div>
+
+          <!-- §3.6 Backstop + Liquidation Health -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.6 · Backstop + Liquidation Health</div>
+            <div class="signal-h">
+              <h3><span class="ic">⚓</span> backstop_ratio_low / _depleted / bad_debt / auction_stalled</h3>
+              <span class="severity-badge silent"><span class="dot"></span>silent</span>
+            </div>
+            <div class="signal-row"><span class="k">Backstop ratio</span><span class="v">82.4% (healthy)</span></div>
+            <div class="signal-row"><span class="k">Bad debt created</span><span class="v">none</span></div>
+            <div class="signal-row"><span class="k">Liquidation auctions</span><span class="v">1 active · progressing</span></div>
+            <div class="signal-row"><span class="k">Threshold ref</span><span class="v" style="color:var(--text-mute);font-size:11px;">architecture §3.6</span></div>
+            <div class="signal-foot">
+              Data: <code>pool.loadPool()</code> backstop config + reserve totals; auction state via Blend SDK; bad debt via Stellar Expert on-chain stream.
+            </div>
+          </div>
+
+          <!-- §3.7 DEX Liquidity (exit path) -->
+          <div class="signal-card">
+            <div class="signal-cat">§3.7 · DEX Liquidity (exit path)</div>
+            <div class="signal-h">
+              <h3><span class="ic">⇄</span> exit_slippage_spike / xlm_usdc_liquidity_low</h3>
+              <span class="severity-badge silent"><span class="dot"></span>silent</span>
+            </div>
+            <div class="signal-row"><span class="k">Simulated 2× pool exit</span><span class="v">0.32% slippage</span></div>
+            <div class="signal-row"><span class="k">XLM/USDC depth (50k XLM)</span><span class="v">$11.4M · healthy</span></div>
+            <div class="signal-row"><span class="k">AMM source</span><span class="v">Aquarius quote API</span></div>
+            <div class="signal-row"><span class="k">Threshold ref</span><span class="v" style="color:var(--text-mute);font-size:11px;">architecture §3.7</span></div>
+            <div class="signal-foot">
+              No signal fired — exit path liquid; routine cycle records only (silent).
+            </div>
+          </div>
+        </div>
+
+        <p style="text-align:center;color:var(--text-mute);font-size:11.5px;margin:24px 0 8px;line-height:1.6;">
+          OctoPos is the deterministic primary; Blend SDK falls back when fields are 404/stale. Thresholds live in <code style="font-family:var(--mono);">architecture §3</code> — tunable by operator via <code style="font-family:var(--mono);">/api/v1/rms/config/:poolAddress</code>.
+        </p>
+      </section>
+
+      <!-- ── Agents page — autonomous monitoring agents ───────────────── -->
+      <section id="page-agents" class="page" hidden>
+        <div class="page-head">
+          <h1>Agents</h1>
+          <div class="sub-tabs">
+            <div class="sub-tab active">All</div>
+            <div class="sub-tab">Active</div>
+            <div class="sub-tab">Paused</div>
+          </div>
+        </div>
+
+        <p class="privacy" style="margin-bottom: 16px;">
+          <span class="ic">◈</span>
+          Autonomous agents that evaluate DeFi positions on a fixed cadence and surface alertable signals. Wired into the <code style="font-family:var(--mono);font-size:10.5px;background:var(--bg-2);padding:1px 4px;border-radius:3px;">Risk Alerts</code> page when thresholds cross.
+        </p>
+
+        <!-- Primary agent: Agent-20 Blend Risk Monitor -->
+        <div class="agent-card">
+          <div class="agent-h">
+            <h3><span class="ic">⚑</span> Agent-20 · Blend Risk Monitor</h3>
+            <span class="severity-badge info"><span class="dot"></span>running</span>
+          </div>
+          <div class="agent-desc">
+            Evaluates 7 signal categories against Blend lending pools (YieldBlox on Stellar mainnet). Pulls deterministic data from OctoPos REST + falls back to Blend SDK for fields OctoPos doesn't expose. Dispatches fired signals via Telegram with severity-aware cooldowns.
+          </div>
+          <div class="agent-meta">
+            <span><strong>Skill:</strong> blend-risk-monitor</span>
+            <span><strong>Cadence:</strong> 3-hour routine + 60s oracle poll</span>
+            <span><strong>Last cycle:</strong> routine-2026-06-26T19:00Z · 12m ago</span>
+            <span><strong>Pools monitored:</strong> 3</span>
+          </div>
+          <div class="agent-links">
+            <a class="agent-link" href="#">Open skill spec ↗</a>
+            <a class="agent-link" href="#">Architecture thresholds ↗</a>
+            <a class="agent-link" href="#">Telegram dispatcher ↗</a>
+          </div>
+        </div>
+
+        <!-- Future agents placeholder -->
+        <div class="agent-card" style="border-style: dashed; opacity: 0.75;">
+          <div class="agent-h">
+            <h3 style="color:var(--text-dim);"><span class="ic" style="color:var(--text-mute);">+</span> Add another agent</h3>
+          </div>
+          <div class="agent-desc" style="color:var(--text-mute);">
+            Future agents will plug into the same signal → severity → dispatcher pipeline (oracle-integrity-monitor for Reflector manipulation, threshold-optimization for weekly calibration, and protocol-specific monitors for Aquarius / SoroSwap when those ship).
+          </div>
+        </div>
+
+        <p style="text-align:center;color:var(--text-mute);font-size:11.5px;margin:24px 0 8px;line-height:1.6;">
+          Agent registry lives at <code style="font-family:var(--mono);">crediolabs-knowledge/wiki/agents/</code>. Each agent owns a Skill spec, an Architecture doc, and a Cycle log.
+        </p>
+      </section>
+
+      <!-- ── Settings page — OctoPos adaptation of Nansen Account Settings + x402 ── -->
+      <section id="page-settings" class="page" hidden>
+        <div class="page-head">
+          <h1>Settings</h1>
+        </div>
+
+        <div class="settings-empty-note">
+          <span class="ic">⌬</span>
+          <div>
+            <strong style="color:var(--text);font-weight:600;">Settings is intentionally minimal for now.</strong>
+            Advanced configuration (subscription, security, account linking) lands in a follow-up release. In the meantime, your address list lives in <code style="font-family:var(--mono);font-size:10.5px;background:var(--bg-2);padding:1px 4px;border-radius:3px;">localStorage</code> on this device — wipe it any time via the Portfolio page's storage inspector.
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3><span class="ic">⏣</span> Connected wallets</h3>
+          <div class="sub">Addresses OctoPos monitors on this device. Add/remove from the Portfolio page.</div>
+          <div class="settings-row">
+            <div class="label-block">
+              <div class="name">Tracked addresses</div>
+              <div class="hint">Synced from <code style="font-family:var(--mono);font-size:10.5px;">localStorage</code> on this device.</div>
+            </div>
+            <div class="value-block">3 of 5 max · 3 selected</div>
+          </div>
+          <div class="settings-row">
+            <div class="label-block">
+              <div class="name">Wipe all data</div>
+              <div class="hint">Clears every address stored on this device. Cannot be undone.</div>
+            </div>
+            <div class="value-block"><button class="btn sm">Wipe addresses</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Feedback page — Gmail-required gating ────────────────────── -->
+      <section id="page-feedback" class="page" hidden>
+        <div class="page-head">
+          <h1>Feedback</h1>
+        </div>
+
+        <div class="feedback-simple-cta">
+          <span class="ic">⌬</span>
+          <h2>Sign in or create an account to leave feedback</h2>
+          <p>An account lets you submit feedback and unlock advanced features (custom thresholds, alert dispatch, multi-wallet groups). Browsing the app works without one.</p>
+          <div class="btn-row">
+            <button class="btn primary">Sign in</button>
+            <button class="btn">Create account</button>
+          </div>
+        </div>
+
+        <div class="feedback-advanced">
+          <div class="adv-h">
+            <h3>Advanced features</h3>
+            <span class="locked-badge">🔒 SIGN-IN REQUIRED</span>
+          </div>
+          <p style="margin:0;font-size:12.5px;color:var(--text-dim);">These are still being scoped. Sign in to add yourself to the early-access list and weigh in on which to ship first.</p>
+          <ul>
+            <li>Custom risk-monitor thresholds per pool (currently single global default)</li>
+            <li>Telegram + Discord alert dispatch (currently local-only toasts)</li>
+            <li>Multi-wallet portfolio rollups (group 2–5 addresses by tag)</li>
+            <li>Historical PnL tracking with cost basis import (CSV / Cointracker)</li>
+            <li>Webhooks for risk-monitor events</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── Docs page — sidebar footer entry ───────── -->
+      <section id="page-docs" class="page" hidden>
+        <div class="page-head">
+          <h1>Docs</h1>
+        </div>
+
+        <div class="docs-simple">
+          <span class="ic">⌃</span>
+          <h2>OctoPos documentation</h2>
+          <p>Full API reference, integration guides, risk-monitor taxonomy, changelog, and architecture notes live on the docs site.</p>
+          <a class="btn primary" href="https://docs.octopos.crediolabs.ai" target="_blank" rel="noopener">
+            Open Docs site →
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ── AC checklist rail ──────────────────────────────────────────── -->
+<aside class="ac-rail">
+  <h3>UI-002 acceptance criteria</h3>
+  <ul class="list" id="ac-list">
+    <li data-ac="1"><span class="num">1</span><span>Panel renders inside Portfolio</span></li>
+    <li data-ac="2"><span class="num">2</span><span>Live format validation (EVM 0x+40, Stellar G/C+55)</span></li>
+    <li data-ac="3"><span class="num">3</span><span>Optional label as primary text</span></li>
+    <li data-ac="4"><span class="num">4</span><span>Persists to <code>octopos_wallets</code></span></li>
+    <li data-ac="5"><span class="num">5</span><span>X removes + updates storage</span></li>
+    <li data-ac="6"><span class="num">6</span><span>Add disabled with "Maximum 5 wallets" tooltip at cap</span></li>
+    <li data-ac="7"><span class="num">7</span><span>View portfolio → fills Address Allocation + Breakdown</span></li>
+    <li data-ac="8"><span class="num">8</span><span>Empty state prompt: "Add your first wallet to get started"</span></li>
+    <li data-ac="9"><span class="num">9</span><span>Truncated address (first 6 + last 4) + copy-to-clipboard</span></li>
+  </ul>
+  <h3 style="margin-top:14px;">Reproduce a scenario</h3>
+  <div class="scenarios">
+    <button class="btn sm" data-scenario="reset">Reset (empty)</button>
+    <button class="btn sm" data-scenario="seed2">Seed 2 wallets</button>
+    <button class="btn sm" data-scenario="seed5">Seed 5 (cap)</button>
+    <button class="btn sm" data-scenario="format-evm">Invalid EVM</button>
+    <button class="btn sm" data-scenario="format-stellar">Invalid Stellar</button>
+    <button class="btn sm" data-scenario="dedup">Try re-add</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast">Copied ✓</div>
+
+<script>
+  /* ── Wireframe logic — same as the OctoPos-styled wireframe ────── */
+  const STORAGE_KEY = 'octopos_wallets';
+  const MAX = 5;
+  const EVM_RE = /^0x[0-9a-fA-F]{40}$/;
+  const STELLAR_RE = /^[GC][A-Z2-7]{55}$/;
+
+  const PALETTE = [
+    '#4ec5ff', '#8b5cf6', '#34d399', '#fbbf24', '#ec4899',
+    '#f5b942', '#22d3ee', '#a78bfa',
+  ];
+
+  function uid() { return 'w_' + Math.random().toString(36).slice(2, 9); }
+  function truncate(addr) { return addr.length <= 10 ? addr : `${addr.slice(0, 6)}…${addr.slice(-4)}`; }
+  function readStorage() {
+    try { const raw = localStorage.getItem(STORAGE_KEY); const parsed = raw ? JSON.parse(raw) : []; return Array.isArray(parsed) ? parsed : []; }
+    catch { return []; }
+  }
+  function writeStorage(wallets) {
+    if (!wallets.length) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(wallets));
+  }
+  function fakeValue(addr) {
+    let h = 0; for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) | 0;
+    return Math.abs(h % 950000) / 100 + 12.5;
+  }
+  function fakePositions(addr) { return 3 + (Math.abs(addr.charCodeAt(2)) % 28); }
+  function fakeTokens(addr) { return 1 + (Math.abs(addr.charCodeAt(4)) % 14); }
+  function fakeProtocols(addr) { return 1 + (Math.abs(addr.charCodeAt(6)) % 8); }
+
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  let wallets = readStorage();
+  // Backfill `selected` field on legacy entries (default = included in portfolio).
+  wallets.forEach(w => { if (w.selected === undefined) w.selected = true; });
+  let tipTimer = null;
+
+  // Helper: only the ticked addresses drive the portfolio rollup.
+  function selectedWallets() { return wallets.filter(w => w.selected !== false); }
+
+  const $list = document.getElementById('wallet-list');
+  const $empty = document.getElementById('empty-state');
+  const $countChip = document.getElementById('count-chip');
+  const $slots = document.getElementById('slots-info');
+  const $chain = document.getElementById('chain-select');
+  const $addr = document.getElementById('address-input');
+  const $label = document.getElementById('label-input');
+  const $submit = document.getElementById('add-submit');
+  const $tipWrap = document.getElementById('add-tip-wrap');
+  const $formatErr = document.getElementById('format-error');
+  const $submitErr = document.getElementById('submit-error');
+  const $inspector = document.getElementById('storage-inspector');
+  const $toast = document.getElementById('toast');
+  const $walletsPanel = document.getElementById('wallets-panel');
+  const $walletsBody = document.getElementById('wallets-body');
+  const $collapseToggle = document.getElementById('collapse-toggle');
+  const $addFormWrap = document.getElementById('add-form-wrap');
+  const $maxNotice = document.getElementById('max-notice');
+  const $donut = document.getElementById('donut');
+  const $donutLegend = document.getElementById('donut-legend');
+  const $donutTotal = document.getElementById('donut-total');
+  const $addrTbody = document.getElementById('addr-tbody');
+  const $allocHint = document.getElementById('alloc-hint');
+  const $breakHint = document.getElementById('break-hint');
+
+  function render() {
+    // List / empty
+    if (!wallets.length) {
+      $empty.hidden = false; $list.hidden = true; $list.innerHTML = '';
+    } else {
+      $empty.hidden = true; $list.hidden = false;
+      $list.innerHTML = wallets.map(w => `
+        <li class="wallet-row${w.selected === false ? ' deselected' : ''}" data-id="${w.id}">
+          <input type="checkbox" class="addr-check" data-act="toggle"
+                 ${w.selected === false ? '' : 'checked'}
+                 aria-label="Include ${escapeHtml(w.label || w.address)} in portfolio" />
+          <span class="dot" aria-hidden="true"></span>
+          <div class="main">
+            <div class="label-row">
+              <span class="label" title="${escapeHtml(w.label || w.address)}">${escapeHtml(w.label || 'Unnamed address')}</span>
+              <span class="chain-badge${w.chain === 'stellar' ? ' stellar' : ''}">${w.chain === 'evm' ? 'EVM' : 'Stellar'}</span>
+            </div>
+            <div class="addr" title="${escapeHtml(w.address)}">${truncate(w.address)}</div>
+          </div>
+          <div class="actions">
+            <button class="ic-btn" data-act="copy" title="${escapeHtml(w.address)}" aria-label="Copy address">⧉</button>
+            <button class="ic-btn danger" data-act="remove" title="Remove address" aria-label="Remove address">✕</button>
+          </div>
+        </li>
+      `).join('');
+    }
+
+    // Count chip: "X/5" + a subtle "Y selected" suffix when not all are ticked.
+    const sel = selectedWallets().length;
+    $countChip.innerHTML = `${sel}/${MAX}` + (wallets.length > 0 && sel !== wallets.length
+      ? ` <span class="sel-suffix">(${wallets.length} total)</span>`
+      : '');
+
+    const remaining = MAX - wallets.length;
+    $slots.textContent = remaining > 0 ? `${remaining} slot${remaining === 1 ? '' : 's'} left` : 'Limit reached';
+
+    // Add-form vs max-reached notice — hidden once total addresses hit MAX (5).
+    const atMax = wallets.length >= MAX;
+    $addFormWrap.hidden = atMax;
+    $maxNotice.hidden = !atMax;
+
+    // Roll up KPI strip + Address Allocation + Address Breakdown
+    renderRollup();
+
+    refreshSubmitState();
+    renderInspector();
+
+    // AC indicators
+    document.querySelector('[data-ac="8"]').classList.toggle('covered', wallets.length === 0);
+    document.querySelector('[data-ac="1"]').classList.add('covered');
+    document.querySelector('[data-ac="7"]').classList.toggle('covered', wallets.length > 0);
+  }
+
+  function renderRollup() {
+    // KPI tiles — sum of SELECTED addresses only.
+    const sel = selectedWallets();
+    if (!sel.length) {
+      document.getElementById('kpi-net').textContent = '$0.00';
+      document.getElementById('kpi-net-d').textContent = '+0.00% (24H)';
+      document.getElementById('kpi-claim').textContent = '$0.00';
+      document.getElementById('kpi-assets').textContent = '$0.00';
+      document.getElementById('kpi-liab').textContent = '$0.00';
+      document.getElementById('kpi-wallets').textContent = '0';
+      document.getElementById('change-pill').className = 'change-pill';
+      document.getElementById('change-pill').textContent = '— 24H';
+    } else {
+      const rows = sel.map(w => ({ ...w, value: fakeValue(w.address), tokens: fakeTokens(w.address), protocols: fakeProtocols(w.address) }));
+      const total = rows.reduce((s, r) => s + r.value, 0);
+      const claimable = total * 0.018;
+      const liab = total * 0.054;
+      const assets = total + liab;
+      const net24 = (total * 0.0241).toFixed(2);
+      document.getElementById('kpi-net').textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('kpi-net-d').textContent = '+' + net24 + ' (' + (total * 0.0241).toFixed(2) + ' USD)';
+      document.getElementById('kpi-claim').textContent = '$' + claimable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('kpi-assets').textContent = '$' + assets.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('kpi-liab').textContent = '$' + liab.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('kpi-wallets').textContent = sel.length.toString();
+      const pill = document.getElementById('change-pill');
+      pill.className = 'change-pill';
+      pill.textContent = '↑ +2.41% (24H)';
+    }
+
+    // Address Allocation donut
+    if (!sel.length) {
+      $donutTotal.textContent = '$0.00';
+      $allocHint.textContent = wallets.length ? 'No address ticked' : 'No addresses';
+      $donutLegend.innerHTML = '<div style="font-size:12px;color:var(--text-mute);text-align:center;padding:20px 0;">Tick at least one address to see the allocation chart.</div>';
+      $donut.querySelector('svg').innerHTML = '<circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>';
+    } else {
+      const rows = sel.map((w, i) => ({
+        ...w, color: PALETTE[i % PALETTE.length],
+        value: fakeValue(w.address), tokens: fakeTokens(w.address), protocols: fakeProtocols(w.address),
+      }));
+      const total = rows.reduce((s, r) => s + r.value, 0);
+      $donutTotal.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      $allocHint.textContent = `${sel.length} address${sel.length === 1 ? '' : 'es'}` + (sel.length !== wallets.length ? ` of ${wallets.length}` : '');
+
+      // Donut arcs (one stroke per selected wallet)
+      const C = 2 * Math.PI * 15.915;
+      let offset = 0;
+      const arcs = rows.map(r => {
+        const frac = r.value / total;
+        const len = frac * C;
+        const arc = `<circle cx="21" cy="21" r="15.915" fill="transparent" stroke="${r.color}" stroke-width="6" stroke-dasharray="${len.toFixed(3)} ${(C - len).toFixed(3)}" stroke-dashoffset="${(-offset).toFixed(3)}"/>`;
+        offset += len;
+        return arc;
+      }).join('');
+      $donut.querySelector('svg').innerHTML =
+        '<circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>' + arcs;
+
+      // Legend
+      $donutLegend.innerHTML = rows.map(r => `
+        <div class="legend-row">
+          <span class="sw" style="background:${r.color}"></span>
+          <span class="lbl" title="${escapeHtml(r.address)}">${escapeHtml(r.label || truncate(r.address))}</span>
+          <span class="pct">${((r.value / total) * 100).toFixed(1)}%</span>
+          <span class="view" data-view="${r.id}">View on all →</span>
+        </div>
+      `).join('');
+    }
+
+    // Address Breakdown table — selected addresses only.
+    if (!sel.length) {
+      $breakHint.textContent = wallets.length ? 'No address ticked' : 'Pro feature';
+      $addrTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-mute);padding:24px;">${wallets.length ? 'Tick at least one address to populate the breakdown.' : 'No addresses added yet.'}</td></tr>`;
+    } else {
+      $breakHint.textContent = `${sel.length} of ${wallets.length}` + (wallets.length === MAX ? ` (cap ${MAX})` : '');
+      const rows = sel.map((w, i) => ({
+        ...w, color: PALETTE[i % PALETTE.length],
+        value: fakeValue(w.address), tokens: fakeTokens(w.address), protocols: fakeProtocols(w.address),
+      }));
+      const total = rows.reduce((s, r) => s + r.value, 0);
+      $addrTbody.innerHTML = rows.map(r => {
+        const pct = (r.value / total) * 100;
+        return `
+          <tr>
+            <td>
+              <div class="addr-cell">
+                <span class="dot" style="background:${r.color}"></span>
+                <span class="addr" title="${escapeHtml(r.address)}">${truncate(r.address)}</span>
+              </div>
+            </td>
+            <td><span class="chain-badge${r.chain === 'stellar' ? ' stellar' : ''}">${r.chain === 'evm' ? 'EVM' : 'Stellar'}</span></td>
+            <td class="num">
+              <span class="share-bar"><i style="width:${pct.toFixed(1)}%;background:${r.color}"></i></span>
+              ${pct.toFixed(1)}%
+            </td>
+            <td class="num">${r.tokens}</td>
+            <td class="num">${r.protocols}</td>
+            <td class="num" style="color:var(--text);">$${r.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  function renderInspector() {
+    if (!wallets.length) {
+      $inspector.innerHTML = '<span class="empty">(empty — add an address to populate)</span>';
+    } else {
+      const json = JSON.stringify(wallets, null, 2);
+      const colored = json
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"([a-zA-Z_]+)":/g, '<span class="key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="str">"$1"</span>');
+      $inspector.innerHTML = colored;
+    }
+  }
+
+  function refreshSubmitState() {
+    const raw = $addr.value.trim();
+    const isFull = wallets.length >= MAX;
+    const isEmpty = raw.length === 0;
+    const fmtErr = raw ? validateFormat(raw, $chain.value) : null;
+
+    if (fmtErr) {
+      $formatErr.textContent = fmtErr; $formatErr.hidden = false;
+      $addr.classList.add('invalid');
+    } else {
+      $formatErr.hidden = true; $addr.classList.remove('invalid');
+    }
+
+    $submit.disabled = isFull || isEmpty || !!fmtErr;
+    $submit.title = isFull ? 'Maximum 5 addresses' : fmtErr ? fmtErr : isEmpty ? 'Enter an address to add' : 'Add address';
+
+    if (isFull) {
+      $tipWrap.classList.add('show');
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => $tipWrap.classList.remove('show'), 2400);
+    } else {
+      $tipWrap.classList.remove('show');
+    }
+  }
+
+  function validateFormat(raw, chain) {
+    if (!raw) return null;
+    const re = chain === 'evm' ? EVM_RE : STELLAR_RE;
+    if (!re.test(raw)) {
+      return chain === 'evm'
+        ? 'Expected 0x + 40 hex characters.'
+        : 'Expected G/C prefix + 55 base32 characters (56 total).';
+    }
+    return null;
+  }
+
+  /* ── Event wiring ─────────────────────────────────────────────── */
+  $chain.addEventListener('change', () => {
+    $addr.placeholder = $chain.value === 'evm' ? '0x… (EVM address)' : 'G… (Stellar address)';
+    $submitErr.hidden = true; refreshSubmitState();
+  });
+  $addr.addEventListener('input', () => { $submitErr.hidden = true; refreshSubmitState(); });
+  $label.addEventListener('input', () => { $submitErr.hidden = true; });
+  $submit.addEventListener('mouseenter', () => {
+    if (wallets.length >= MAX) { $tipWrap.classList.add('show'); clearTimeout(tipTimer); }
+  });
+  $submit.addEventListener('mouseleave', () => {
+    setTimeout(() => $tipWrap.classList.remove('show'), 600);
+  });
+
+  document.getElementById('add-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $submitErr.hidden = true;
+    const trimmed = $addr.value.trim();
+    const fmtErr = validateFormat(trimmed, $chain.value);
+    if (fmtErr) { showSubmitError(fmtErr); return; }
+    if (wallets.length >= MAX) { showSubmitError('Maximum 5 addresses reached.'); return; }
+    const exists = wallets.some(w => w.address.toLowerCase() === trimmed.toLowerCase());
+    if (exists) { showSubmitError('This address is already in your saved wallets.'); return; }
+    const autoChain = trimmed.startsWith('0x') ? 'evm' : 'stellar';
+    const wallet = {
+      id: uid(),
+      address: trimmed,
+      chain: autoChain,
+      ...($label.value.trim() ? { label: $label.value.trim() } : {}),
+      savedAt: new Date().toISOString(),
+    };
+    wallets = [...wallets, wallet];
+    writeStorage(wallets);
+    render();
+    $addr.value = ''; $label.value = '';
+    if (autoChain !== $chain.value) $chain.value = autoChain;
+    showToast(autoChain === 'evm' ? 'Address added ✓' : 'Stellar address added ✓');
+  });
+
+  $list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const row = btn.closest('.wallet-row');
+    const id = row?.dataset.id;
+    if (!id) return;
+    if (btn.dataset.act === 'remove') {
+      wallets = wallets.filter(w => w.id !== id);
+      writeStorage(wallets); render(); showToast('Address removed');
+    } else if (btn.dataset.act === 'copy') {
+      const w = wallets.find(x => x.id === id);
+      if (!w) return;
+      try {
+        await navigator.clipboard.writeText(w.address);
+        btn.textContent = '✓'; btn.classList.add('copied');
+        showToast('Copied ✓');
+        setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('copied'); }, 1500);
+      } catch { showToast('Copy blocked'); }
+    }
+  });
+
+  // "View combined portfolio" CTA: removed per user request — the rollup
+// panel already reflects selection live, so a separate scroll-into-view
+// button is redundant. Tick state change already calls renderRollup().
+
+  document.getElementById('reload-btn').addEventListener('click', () => {
+    wallets = readStorage(); render();
+    showToast(`Reloaded · ${wallets.length} address${wallets.length === 1 ? '' : 'es'} restored`);
+  });
+  document.getElementById('wipe-btn').addEventListener('click', () => {
+    wallets = []; writeStorage(wallets); render(); showToast('Storage cleared');
+  });
+
+  /* ── Collapse/expand the My Addresses panel body ─────────────── */
+  $collapseToggle.addEventListener('click', () => {
+    const collapsed = $walletsPanel.classList.toggle('collapsed');
+    $collapseToggle.setAttribute('aria-expanded', String(!collapsed));
+    $collapseToggle.title = collapsed ? 'Expand panel' : 'Collapse panel';
+  });
+
+  /* ── Per-row selection checkbox — toggles `selected` on the wallet ─ */
+  $list.addEventListener('change', (e) => {
+    const cb = e.target.closest('input.addr-check[data-act="toggle"]');
+    if (!cb) return;
+    const row = cb.closest('.wallet-row');
+    const id = row?.dataset.id;
+    if (!id) return;
+    const w = wallets.find(x => x.id === id);
+    if (!w) return;
+    w.selected = cb.checked;
+    writeStorage(wallets); renderRollup(); // only the rollup needs to recompute
+    // Update the deselected visual class on this row without re-rendering the whole list.
+    row.classList.toggle('deselected', !cb.checked);
+  });
+
+  /* ── Scenarios ─────────────────────────────────────────────────── */
+  const SCENARIOS = {
+    reset: () => { wallets = []; writeStorage(wallets); render(); $addr.value=''; $label.value=''; $submitErr.hidden=true; showToast('Reset to empty'); },
+    seed2: () => {
+      wallets = [
+        { id: uid(), address: '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503', chain: 'evm', label: 'Binance 8 (treasury)', selected: true,  savedAt: new Date().toISOString() },
+        { id: uid(), address: 'GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4', chain: 'stellar', label: 'Blend test',  selected: true,  savedAt: new Date().toISOString() },
+      ];
+      writeStorage(wallets); render(); showToast('Seeded 2 addresses');
+    },
+    seed5: () => {
+      const chains = ['evm','evm','stellar','evm','stellar'];
+      const samples = [
+        { a: '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503', l: 'Binance 8' },
+        { a: '0x3e8734BfA1F8B7b2C9d5E0a1B2c3D4e5F6a7B8c9', l: 'Boss · BNB' },
+        { a: 'GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4', l: 'Blend test' },
+        { a: '0xd1236a6a49a07c7fee5eb58b4cd7e3fbd3f4e9d7a1a2b3c4d5e6f7a8b9c0d1e2', l: 'Gnosis · Spark' },
+        { a: 'GBBD47UZR7HIQS4Z4BP7GKNZ7BMWXCHMWX3SDX2CIEQWATZ7OA3RJZB6', l: 'Stellar LPs' },
+      ];
+      // Demonstrates per-row tick state: first 3 selected, last 2 deselected.
+      wallets = samples.map((s, i) => ({ id: uid(), address: s.a, chain: chains[i], label: s.l, selected: i < 3, savedAt: new Date().toISOString() }));
+      writeStorage(wallets); render(); showToast('Seeded 5 addresses (cap · 3 ticked)');
+    },
+    'format-evm': () => {
+      $chain.value = 'evm'; $addr.placeholder = '0x… (EVM address)';
+      $addr.value = '0xNotARealAddress'; $label.value = ''; $submitErr.hidden = true; refreshSubmitState(); $addr.focus();
+    },
+    'format-stellar': () => {
+      $chain.value = 'stellar'; $addr.placeholder = 'G… (Stellar address)';
+      $addr.value = 'GABC123notBase32'; $label.value = ''; $submitErr.hidden = true; refreshSubmitState(); $addr.focus();
+    },
+    dedup: () => {
+      if (!wallets.length) {
+        wallets = [{ id: uid(), address: '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503', chain: 'evm', label: 'Binance 8', savedAt: new Date().toISOString() }];
+        writeStorage(wallets);
+      }
+      $addr.value = wallets[0].address; $chain.value = wallets[0].chain;
+      $addr.placeholder = $chain.value === 'evm' ? '0x… (EVM address)' : 'G… (Stellar address)';
+      $label.value = 'Duplicate attempt'; refreshSubmitState(); $submit.click();
+    },
+  };
+  document.querySelectorAll('[data-scenario]').forEach(b => b.addEventListener('click', () => SCENARIOS[b.dataset.scenario]?.()));
+
+  function showSubmitError(msg) { $submitErr.textContent = msg; $submitErr.hidden = false; }
+  function showToast(msg) {
+    $toast.textContent = msg; $toast.classList.add('show');
+    clearTimeout(showToast._t); showToast._t = setTimeout(() => $toast.classList.remove('show'), 1800);
+  }
+
+  render();
+
+  // ── Allocation view switcher (Address / Protocol / Chain / Token) ──
+  // Risk moved to its own dedicated "Risk Alerts" page (sidebar nav).
+  const ALLOC_TITLES = {
+    address:  { alloc: 'Address Allocation',  break: 'Address Breakdown' },
+    protocol: { alloc: 'Protocol Allocation', break: 'Protocol Breakdown' },
+    chain:    { alloc: 'Chain Allocation',    break: 'Chain Breakdown' },
+    token:    { alloc: 'Token Allocation',    break: 'Token Breakdown' },
+  };
+  const $allocTabs = document.getElementById('alloc-tabs');
+  const $allocTitle = document.getElementById('alloc-title');
+  const $breakTitle = document.getElementById('break-title');
+  const $allocDonutWrap = document.getElementById('alloc-donut-wrap');
+  const allocTables = {
+    address:  document.getElementById('tbl-address'),
+    protocol: document.getElementById('tbl-protocol'),
+    chain:    document.getElementById('tbl-chain'),
+    token:    document.getElementById('tbl-token'),
+  };
+  $allocTabs.querySelectorAll('.alloc-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.dataset.alloc;
+      $allocTabs.querySelectorAll('.alloc-tab').forEach(t => t.classList.toggle('active', t === tab));
+      $allocTitle.textContent = ALLOC_TITLES[mode].alloc;
+      $breakTitle.textContent = ALLOC_TITLES[mode].break;
+      // table swap (donut is always visible now — Risk Profile moved out)
+      Object.entries(allocTables).forEach(([k, el]) => { if (el) el.hidden = (k !== mode); });
+    });
+  });
+
+  // ── Top-level view switcher (Overview / Holdings / Transactions) ──
+  const $viewTabs = document.getElementById('view-tabs');
+  const viewPanels = {
+    overview:     document.getElementById('view-overview'),
+    holdings:     document.getElementById('view-holdings'),
+    transactions: document.getElementById('view-transactions'),
+  };
+  $viewTabs.querySelectorAll('.sub-tab[data-view]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const view = tab.dataset.view;
+      $viewTabs.querySelectorAll('.sub-tab').forEach(t => t.classList.toggle('active', t === tab));
+      Object.entries(viewPanels).forEach(([k, el]) => { if (el) el.hidden = (k !== view); });
+    });
+  });
+
+  // ── Sub-tabs (Overview / Holdings / Transactions) — visual toggle ──
+  // NOTE: $viewTabs already declared above (line ~1657); re-use it.
+  // The full view-switcher that swaps panel `hidden` attributes is wired just above.
+  $viewTabs.querySelectorAll('.sub-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      $viewTabs.querySelectorAll('.sub-tab').forEach(t => t.classList.toggle('active', t === tab));
+    });
+  });
+
+  // ── Filter pills — toggle caret / chip selected state ──────────────
+  document.querySelectorAll('#filter-row .filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      if (pill.classList.contains('add-filter')) return; // "+" is decorative
+      pill.classList.toggle('selected');
+    });
+  });
+
+  // ── Sidebar page navigation (Portfolio / Risk Alerts / Agents / Docs / Feedback / Settings) ──
+  const $sidebarNavItems = document.querySelectorAll('.sidebar .nav-item[data-page]');
+  const pages = {
+    portfolio:     document.getElementById('page-portfolio'),
+    'risk-alerts': document.getElementById('page-risk-alerts'),
+    agents:        document.getElementById('page-agents'),
+    docs:          document.getElementById('page-docs'),
+    feedback:      document.getElementById('page-feedback'),
+    settings:      document.getElementById('page-settings'),
+  };
+  const PAGE_CRUMBS = {
+    portfolio:     ['Portfolio', 'Overview'],
+    'risk-alerts': ['Risk Alerts', 'All severities'],
+    agents:        ['Agents', 'All'],
+    docs:          ['Docs', 'Reference'],
+    feedback:      ['Feedback', 'Submit'],
+    settings:      ['Settings', 'Profile'],
+  };
+  const $crumbs = document.querySelector('.topbar .crumbs');
+  $sidebarNavItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const page = item.dataset.page;
+      $sidebarNavItems.forEach(t => t.classList.toggle('active', t === item));
+      Object.entries(pages).forEach(([k, el]) => { if (el) el.hidden = (k !== page); });
+      const c = PAGE_CRUMBS[page];
+      if ($crumbs && c) $crumbs.innerHTML = `${c[0]} · <strong>${c[1]}</strong>`;
+    });
+  });
+
+  // ── Sidebar collapse (⌘B) ───────────────────────────────────────
+  const $app = document.querySelector('.app');
+  const $sidebarCollapse = document.getElementById('collapse-toggle-sidebar');
+  const SIDEBAR_COLLAPSED_KEY = 'octopos_sidebar_collapsed';
+  const setSidebarCollapsed = (collapsed) => {
+    $app.classList.toggle('sidebar-collapsed', collapsed);
+    $sidebarCollapse.setAttribute('aria-label', collapsed ? 'Expand menu' : 'Collapse menu');
+    $sidebarCollapse.title = collapsed ? 'Expand menu (⌘B)' : 'Collapse menu (⌘B)';
+    $sidebarCollapse.querySelector('.lbl').textContent = collapsed ? 'Expand menu' : 'Collapse menu';
+    try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch {}
+  };
+  if ($sidebarCollapse && $app) {
+    let storedCollapsed = '0';
+    try { storedCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) || '0'; } catch {}
+    if (storedCollapsed === '1') setSidebarCollapsed(true);
+    $sidebarCollapse.addEventListener('click', () => setSidebarCollapsed(!$app.classList.contains('sidebar-collapsed')));
+    document.addEventListener('keydown', (e) => {
+      // ⌘B (Mac) or Ctrl+B — toggle sidebar
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setSidebarCollapsed(!$app.classList.contains('sidebar-collapsed'));
+      }
+    });
+  }
+
+  // ── Portfolio sub-tab routing (Protocols Tracked | My Portfolio) ──
+  // Mirrors Nansen's "Supported Protocols" surface — groups OctoPos adapters by chain.
+  // Data shape mirrors what /v1/protocols returns today (24 EVM adapters + 10 Stellar slices).
+  const PROTOCOLS_BY_CHAIN = [
+    {
+      chain: 'Ethereum',  color: '#627eea', protocols: [
+        { id: 'aave-v3',     name: 'Aave V3',      meta: 'Lending' },
+        { id: 'lido',        name: 'Lido',         meta: 'Liquid staking' },
+        { id: 'uniswap-v3',  name: 'Uniswap V3',   meta: 'AMM LP' },
+        { id: 'maker',       name: 'Maker',        meta: 'CDP' },
+        { id: 'sky',         name: 'Sky',          meta: 'Savings' },
+        { id: 'eigenlayer',  name: 'EigenLayer',   meta: 'Restaking' },
+        { id: 'morpho',      name: 'Morpho',       meta: 'Lending' },
+        { id: 'pendle',      name: 'Pendle',       meta: 'Yield' },
+        { id: 'rocket-pool', name: 'Rocket Pool',  meta: 'Liquid staking' },
+        { id: 'ethena',      name: 'Ethena',       meta: 'Synthetic dollar' },
+        { id: 'curve',       name: 'Curve',        meta: 'StableSwap' },
+      ]
+    },
+    {
+      chain: 'Base',  color: '#0052ff', protocols: [
+        { id: 'aerodrome',  name: 'Aerodrome',  meta: 'AMM' },
+        { id: 'morpho',     name: 'Morpho',     meta: 'Lending' },
+        { id: 'moonwell',   name: 'Moonwell',   meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'Arbitrum',  color: '#28a0f0', protocols: [
+        { id: 'gmx-v2',     name: 'GMX V2',     meta: 'Perps' },
+        { id: 'uniswap-v3', name: 'Uniswap V3', meta: 'AMM LP' },
+        { id: 'pendle',     name: 'Pendle',     meta: 'Yield' },
+      ]
+    },
+    {
+      chain: 'Polygon',  color: '#8247e5', protocols: [
+        { id: 'aave-v3',    name: 'Aave V3',    meta: 'Lending' },
+        { id: 'uniswap-v3', name: 'Uniswap V3', meta: 'AMM LP' },
+      ]
+    },
+    {
+      chain: 'BNB Chain',  color: '#f0b90b', protocols: [
+        { id: 'venus',       name: 'Venus',        meta: 'Lending' },
+        { id: 'pancakeswap', name: 'PancakeSwap',  meta: 'AMM LP' },
+        { id: 'lista-dao',   name: 'Lista DAO',    meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'Gnosis',  color: '#04795b', protocols: [
+        { id: 'spark-lend', name: 'Spark Lend', meta: 'Lending' },
+        { id: 'maker',      name: 'Maker',      meta: 'CDP' },
+      ]
+    },
+    {
+      chain: 'Avalanche',  color: '#e84142', protocols: [
+        { id: 'aave-v3', name: 'Aave V3', meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'Optimism',  color: '#ff0420', protocols: [
+        { id: 'velodrome', name: 'Velodrome', meta: 'AMM' },
+        { id: 'aave-v3',   name: 'Aave V3',   meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'Scroll',  color: '#ffeeda', protocols: [
+        { id: 'aave-v3', name: 'Aave V3', meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'Mantle',  color: '#000000', protocols: [
+        { id: 'mantle-lend', name: 'Mantle Lend', meta: 'Lending' },
+      ]
+    },
+    {
+      chain: 'HyperEVM',  color: '#50e3c2', protocols: [
+        { id: 'hyperliquid', name: 'Hyperliquid', meta: 'Perps' },
+        { id: 'hyperswap',   name: 'Hyperswap',   meta: 'AMM' },
+      ]
+    },
+    {
+      chain: 'Solana',  color: '#14f195', protocols: [
+        { id: 'kamino',  name: 'Kamino',  meta: 'Lending' },
+        { id: 'jupiter', name: 'Jupiter', meta: 'Aggregator' },
+        { id: 'drift',   name: 'Drift',   meta: 'Perps' },
+        { id: 'marinade', name: 'Marinade', meta: 'Liquid staking' },
+      ]
+    },
+    {
+      chain: 'Stellar · Soroban',  color: '#8b5cf6', protocols: [
+        { id: 'blend',         name: 'Blend',           meta: 'Lending' },
+        { id: 'soroswap',      name: 'Soroswap',        meta: 'AMM' },
+        { id: 'phoenix',       name: 'Phoenix',         meta: 'Orderbook DEX' },
+        { id: 'aquarius',      name: 'Aquarius',        meta: 'AMM router' },
+        { id: 'fxdao',         name: 'FXDAO',           meta: 'Vault' },
+        { id: 'untangled-vault', name: 'Untangled Vault', meta: 'RWA vault' },
+        { id: 'stellar-wallet', name: 'Stellar Wallet', meta: 'Native' },
+        { id: 'upshift',       name: 'Upshift',         meta: 'Vault' },
+        { id: 'sushi-stellar', name: 'Sushi Stellar',   meta: 'AMM' },
+      ]
+    },
+    {
+      chain: 'Stellar · Classic',  color: '#a78bfa', protocols: [
+        { id: 'usdy', name: 'USDY (Ondo)',  meta: 'RWA' },
+        { id: 'ustbl', name: 'USTBL',      meta: 'RWA' },
+        { id: 'eutbl', name: 'EUTBL',      meta: 'RWA' },
+      ]
+    },
+  ];
+
+  const $protocolsTrackedContent = document.getElementById('protocols-tracked-content');
+  const $portfolioContent       = document.getElementById('portfolio-content');
+  const $protocolsChainList     = document.getElementById('protocols-chain-list');
+
+  function renderProtocolsTracked() {
+    if (!$protocolsChainList) return;
+    let totalProtos = 0;
+    let evmChains = 0;
+    let stellarProtos = 0;
+    const evmChainNames = new Set();
+    const stellarChainNames = new Set();
+
+    const html = PROTOCOLS_BY_CHAIN.map(group => {
+      totalProtos += group.protocols.length;
+      if (group.chain.startsWith('Stellar')) {
+        stellarProtos += group.protocols.length;
+        stellarChainNames.add(group.chain);
+      } else {
+        evmChains += 1;
+        evmChainNames.add(group.chain);
+      }
+      const chips = group.protocols.map(p => `
+        <div class="proto-chip">
+          <span class="proto-dot" style="background:${group.color}"></span>
+          <span class="proto-name">${escapeHtml(p.name)}</span>
+          <span class="proto-meta">${escapeHtml(p.meta)}</span>
+        </div>
+      `).join('');
+      return `
+        <div class="chain-block">
+          <div class="chain-h">
+            <div class="chain-name"><span class="chain-dot" style="background:${group.color}"></span>${escapeHtml(group.chain)}</div>
+            <div class="chain-count"><strong>${group.protocols.length}</strong> ${group.protocols.length === 1 ? 'protocol' : 'protocols'}</div>
+          </div>
+          <div class="proto-grid">${chips}</div>
+        </div>
+      `;
+    }).join('');
+
+    $protocolsChainList.innerHTML = html;
+
+    const $total   = document.getElementById('proto-total');
+    const $chains  = document.getElementById('proto-chains');
+    const $stellar = document.getElementById('proto-stellar');
+    if ($total)   $total.textContent   = totalProtos;
+    if ($chains)  $chains.textContent  = evmChains;
+    if ($stellar) $stellar.textContent = stellarProtos;
+  }
+
+  renderProtocolsTracked();
+
+  // Sub-tab routing: switch between Protocols Tracked and My Portfolio.
+  const $protoTab     = document.querySelector('[data-protocols-tab]');
+  const $portfolioTab = document.querySelector('[data-my-portfolio-tab]');
+  function setPortfolioSubTab(which) {
+    if (which === 'protocols') {
+      $protocolsTrackedContent.hidden = false;
+      $portfolioContent.hidden = true;
+      $protoTab.classList.add('active');
+      $portfolioTab.classList.remove('active');
+      const $crumbs = document.querySelector('.topbar .crumbs');
+      if ($crumbs) $crumbs.innerHTML = 'Portfolio · <strong>Protocols Tracked</strong>';
+    } else {
+      $protocolsTrackedContent.hidden = true;
+      $portfolioContent.hidden = false;
+      $portfolioTab.classList.add('active');
+      $protoTab.classList.remove('active');
+      const $crumbs = document.querySelector('.topbar .crumbs');
+      if ($crumbs) $crumbs.innerHTML = 'Portfolio · <strong>My Portfolio</strong>';
+    }
+  }
+  if ($protoTab)     $protoTab.addEventListener('click', () => setPortfolioSubTab('protocols'));
+  if ($portfolioTab) $portfolioTab.addEventListener('click', () => setPortfolioSubTab('portfolio'));
+  // Default sub-tab on load — Protocols Tracked
+  setPortfolioSubTab('protocols');
+</script>
+</body>
+</html>
